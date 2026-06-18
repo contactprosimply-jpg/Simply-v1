@@ -1,17 +1,17 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
+import { isSupabaseConfigured, supabaseAnonKey, supabaseUrl } from './env'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Variables VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY requises.')
+function createSupabaseClient(): SupabaseClient<Database> {
+  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  })
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-  },
-})
+export const supabase: SupabaseClient<Database> = isSupabaseConfigured()
+  ? createSupabaseClient()
+  : (null as unknown as SupabaseClient<Database>)
