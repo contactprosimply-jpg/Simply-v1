@@ -50,6 +50,17 @@ export async function fetchChantiers(): Promise<{ chantiers: Chantier[]; error: 
     .order('created_at', { ascending: false })
 
   if (tendersRes.error) {
+    const tendersMissing =
+      tendersRes.error.message.includes('Could not find the table') ||
+      tendersRes.error.message.includes('schema cache')
+
+    if (tendersMissing) {
+      return {
+        chantiers: [],
+        error: null,
+      }
+    }
+
     return { chantiers: [], error: tendersRes.error.message }
   }
 
