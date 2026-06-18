@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { supabase } from '../lib/supabase'
 import type { Chantier } from '../types/database'
+import { fetchChantiers as loadChantiers } from '../services/chantiers'
 
 interface ChantierState {
   chantiers: Chantier[]
@@ -24,17 +24,13 @@ export const useChantierStore = create<ChantierState>()(
       fetchChantiers: async () => {
         set({ loading: true, error: null })
 
-        const { data, error } = await supabase
-          .from('chantiers')
-          .select('*')
-          .order('created_at', { ascending: false })
+        const { chantiers, error } = await loadChantiers()
 
         if (error) {
-          set({ loading: false, error: error.message })
+          set({ loading: false, error })
           return
         }
 
-        const chantiers = (data ?? []) as Chantier[]
         const currentId = get().selectedId
         const stillValid = chantiers.some((c) => c.id === currentId)
 

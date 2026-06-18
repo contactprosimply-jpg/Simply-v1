@@ -12,15 +12,15 @@ export interface Chantier {
   montant: number | null
   statut: ChantierStatut
   owner_id: string
-  organisation_id: string
+  organization_id: string | null
   created_at: string
 }
 
 export interface Profile {
   id: string
-  organisation_id: string
+  organisation_id?: string | null
   full_name: string | null
-  created_at: string
+  created_at?: string
 }
 
 export interface Tache {
