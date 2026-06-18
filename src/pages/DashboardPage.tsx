@@ -105,7 +105,7 @@ export function DashboardPage() {
       <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
         <p className="text-lg font-medium text-navy">Aucun chantier sélectionné</p>
         <p className="mt-2 max-w-md text-sm text-gray-500">
-          Les chantiers gagnés dans Operis apparaîtront ici automatiquement.
+          Créez un chantier avec le bouton + en haut de l&apos;écran.
         </p>
       </div>
     )

@@ -1,71 +1,40 @@
 import { supabase } from '../lib/supabase'
 import type { Chantier } from '../types/database'
 
-interface OperisTender {
-  id: string
-  title: string
-  client: string
-  budget_ht: number | null
-  user_id: string
-  created_at: string
-  simply_chantier_id: string | null
-}
-
-function mapTenderToChantier(t: OperisTender): Chantier {
-  return {
-    id: t.simply_chantier_id ?? t.id,
-    ao_id: t.id,
-    nom: t.title,
-    client: t.client,
-    montant: t.budget_ht,
-    statut: 'en_cours',
-    owner_id: t.user_id,
-    organization_id: null,
-    created_at: t.created_at,
-  }
-}
-
 export async function fetchChantiers(): Promise<{ chantiers: Chantier[]; error: string | null }> {
-  const chantiersRes = await supabase
+  const { data, error } = await supabase
     .from('chantiers')
     .select('*')
     .order('created_at', { ascending: false })
 
-  if (!chantiersRes.error) {
-    return { chantiers: (chantiersRes.data ?? []) as Chantier[], error: null }
+  if (error) {
+    return { chantiers: [], error: error.message }
   }
 
-  const missingTable =
-    chantiersRes.error.message.includes('Could not find the table') ||
-    chantiersRes.error.message.includes('schema cache')
+  return { chantiers: (data ?? []) as Chantier[], error: null }
+}
 
-  if (!missingTable) {
-    return { chantiers: [], error: chantiersRes.error.message }
+export async function createChantier(input: {
+  nom: string
+  client?: string
+  ownerId: string
+  organisationId: string
+}): Promise<{ chantier: Chantier | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from('chantiers')
+    .insert({
+      nom: input.nom,
+      client: input.client ?? null,
+      owner_id: input.ownerId,
+      organisation_id: input.organisationId,
+      statut: 'en_cours',
+    } as never)
+    .select('*')
+    .single()
+
+  if (error) {
+    return { chantier: null, error: error.message }
   }
 
-  const tendersRes = await supabase
-    .from('tenders')
-    .select('id, title, client, budget_ht, user_id, created_at, simply_chantier_id')
-    .eq('status', 'gagne')
-    .order('created_at', { ascending: false })
-
-  if (tendersRes.error) {
-    const tendersMissing =
-      tendersRes.error.message.includes('Could not find the table') ||
-      tendersRes.error.message.includes('schema cache')
-
-    if (tendersMissing) {
-      return {
-        chantiers: [],
-        error: null,
-      }
-    }
-
-    return { chantiers: [], error: tendersRes.error.message }
-  }
-
-  return {
-    chantiers: ((tendersRes.data ?? []) as OperisTender[]).map(mapTenderToChantier),
-    error: null,
-  }
+  return { chantier: data as Chantier, error: null }
 }

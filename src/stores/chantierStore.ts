@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Chantier } from '../types/database'
-import { fetchChantiers as loadChantiers } from '../services/chantiers'
+import { createChantier as insertChantier, fetchChantiers as loadChantiers } from '../services/chantiers'
 
 interface ChantierState {
   chantiers: Chantier[]
@@ -9,6 +9,7 @@ interface ChantierState {
   loading: boolean
   error: string | null
   fetchChantiers: () => Promise<void>
+  createChantier: (nom: string, client?: string, ownerId?: string, organisationId?: string) => Promise<string | null>
   selectChantier: (id: string) => void
   selectedChantier: () => Chantier | null
 }
@@ -39,6 +40,27 @@ export const useChantierStore = create<ChantierState>()(
           loading: false,
           selectedId: stillValid ? currentId : chantiers[0]?.id ?? null,
         })
+      },
+
+      createChantier: async (nom, client, ownerId, organisationId) => {
+        if (!ownerId || !organisationId) {
+          return 'Profil incomplet — reconnectez-vous.'
+        }
+
+        const { chantier, error } = await insertChantier({
+          nom,
+          client,
+          ownerId,
+          organisationId,
+        })
+
+        if (error || !chantier) {
+          return error ?? 'Impossible de créer le chantier.'
+        }
+
+        const chantiers = [chantier, ...get().chantiers]
+        set({ chantiers, selectedId: chantier.id, error: null })
+        return null
       },
 
       selectChantier: (id) => set({ selectedId: id }),

@@ -1,0 +1,8 @@
+-- Pont Operis ↔ Simply (À FAIRE PLUS TARD — ne pas exécuter maintenant)
+--
+-- Quand Simply et Operis seront connectés :
+-- 1. Partager le même projet Supabase OU synchroniser entre projets
+-- 2. Créer sync AO gagnés (tenders.status = 'gagne') → chantiers
+-- 3. Auth partagée entre les deux apps
+--
+-- Voir l'historique git pour un brouillon de migration operis_bridge.

@@ -110,7 +110,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </nav>
 
         <div className="border-t border-white/10 px-5 py-4 text-xs text-white/50">
-          Compagnon Operis · v1.0
+          Simply · v1.0
         </div>
       </aside>
     </>
