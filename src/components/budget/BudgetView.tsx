@@ -1,5 +1,6 @@
 "use client";
 
+import { DevisImportPanel } from "@/components/budget/DevisImportPanel";
 import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useChantiers } from "@/components/providers/ChantierProvider";
@@ -14,7 +15,7 @@ const TYPES: { value: BudgetType; label: string }[] = [
 ];
 
 export function BudgetView() {
-  const { selectedChantier, budgetForSelected, createBudgetLigne, updateBudgetLigne, deleteBudgetLigne } = useChantiers();
+  const { selectedChantier, budgetForSelected, createBudgetLigne, updateBudgetLigne, deleteBudgetLigne, updateChantier } = useChantiers();
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [type, setType] = useState<BudgetType>("devis");
@@ -100,6 +101,18 @@ export function BudgetView() {
               ? "Budget dépassé — vérifiez les dépenses et factures."
               : `Attention : ${summary.pct} % du budget prévu est consommé.`}
           </AlertBanner>
+        )}
+
+        {selectedChantier && (
+          <DevisImportPanel
+            chantierNom={selectedChantier.nom}
+            chantierClient={selectedChantier.client}
+            chantierMontant={selectedChantier.montant}
+            supabaseChantierId={selectedChantier.supabaseChantierId}
+            onLinked={(supabaseChantierId) =>
+              updateChantier(selectedChantier.id, { supabaseChantierId })
+            }
+          />
         )}
 
         {showForm && (

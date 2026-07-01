@@ -62,6 +62,7 @@ export interface UpdateChantierInput {
   adresse?: string | null;
   montant?: number | null;
   statut?: ChantierStatut;
+  supabaseChantierId?: string | null;
 }
 
 interface AppContextValue {
@@ -194,6 +195,7 @@ export function ChantierProvider({ children }: { children: ReactNode }) {
         adresse: adresse ?? null,
         montant: null,
         statut: "en_cours",
+        supabaseChantierId: null,
         createdAt: new Date().toISOString(),
       };
       persist((prev) => ({

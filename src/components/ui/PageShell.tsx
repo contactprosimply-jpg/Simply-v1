@@ -68,17 +68,20 @@ export function BtnPrimary({
   onClick,
   type = "button",
   className = "",
+  disabled = false,
 }: {
   children: ReactNode;
   onClick?: () => void;
   type?: "button" | "submit";
   className?: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       type={type}
       onClick={onClick}
-      className={`btn-primary-gradient inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold text-white ${className}`}
+      disabled={disabled}
+      className={`btn-primary-gradient inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
     >
       {children}
     </button>
@@ -89,16 +92,21 @@ export function BtnSecondary({
   children,
   onClick,
   type = "button",
+  className = "",
+  disabled = false,
 }: {
   children: ReactNode;
   onClick?: () => void;
   type?: "button" | "submit";
+  className?: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       type={type}
       onClick={onClick}
-      className="inline-flex h-11 items-center gap-2 rounded-xl border border-surface-dark bg-white px-5 text-sm font-medium text-brand shadow-sm transition hover:border-accent-blue/30 hover:bg-surface hover:shadow"
+      disabled={disabled}
+      className={`inline-flex h-11 items-center gap-2 rounded-xl border border-surface-dark bg-white px-5 text-sm font-medium text-brand shadow-sm transition hover:border-accent-blue/30 hover:bg-surface hover:shadow disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
     >
       {children}
     </button>
@@ -160,12 +168,14 @@ export function AlertBanner({
   variant = "warning",
 }: {
   children: ReactNode;
-  variant?: "warning" | "danger";
+  variant?: "warning" | "danger" | "success";
 }) {
   const styles =
     variant === "danger"
       ? "border-red-200/80 bg-gradient-to-r from-red-50 to-red-50/50 text-red-800"
-      : "border-amber-200/80 bg-gradient-to-r from-amber-50 to-orange-50/50 text-amber-900";
+      : variant === "success"
+        ? "border-emerald-200/80 bg-gradient-to-r from-emerald-50 to-emerald-50/50 text-emerald-800"
+        : "border-amber-200/80 bg-gradient-to-r from-amber-50 to-orange-50/50 text-amber-900";
   return (
     <div className={`rounded-xl border px-4 py-3.5 text-sm font-medium shadow-sm ${styles}`}>
       {children}

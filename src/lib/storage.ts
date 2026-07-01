@@ -30,6 +30,7 @@ export function migrateAppData(raw: Partial<AppData>): AppData {
         adresse: c.adresse ?? null,
         client: c.client ?? null,
         montant: c.montant ?? null,
+        supabaseChantierId: c.supabaseChantierId ?? null,
       }),
     ),
     taches: base.taches.map(

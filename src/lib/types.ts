@@ -35,6 +35,8 @@ export interface Chantier {
   adresse: string | null;
   montant: number | null;
   statut: ChantierStatut;
+  /** UUID chantier côté Supabase (liaison cloud devis). */
+  supabaseChantierId: string | null;
   createdAt: string;
 }
 
