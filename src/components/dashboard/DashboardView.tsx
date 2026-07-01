@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   TrendingUp,
   AlertTriangle,
@@ -10,39 +11,18 @@ import {
 import { useMemo } from "react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { useChantiers } from "@/components/providers/ChantierProvider";
-import { computeKpis } from "@/lib/types";
-
-function formatCurrency(amount: number) {
-  return amount.toLocaleString("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  });
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
+import { LoadingSpinner } from "@/components/ui/PageShell";
+import { computeKpis, formatCurrency, formatDateFr } from "@/lib/types";
 
 export function DashboardView() {
-  const { selectedId, selectedChantier, taches, ready } = useChantiers();
+  const { selectedId, selectedChantier, data, photosForSelected, ready } = useChantiers();
 
   const kpis = useMemo(() => {
     if (!selectedId) return null;
-    return computeKpis(selectedId, taches);
-  }, [selectedId, taches]);
+    return computeKpis(selectedId, data);
+  }, [selectedId, data]);
 
-  if (!ready) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent-blue border-t-transparent" />
-      </div>
-    );
-  }
+  if (!ready) return <LoadingSpinner />;
 
   if (!selectedId || !selectedChantier) {
     return (
@@ -59,6 +39,8 @@ export function DashboardView() {
     kpis && kpis.budgetPrevu > 0
       ? Math.round((kpis.budgetConsomme / kpis.budgetPrevu) * 100)
       : 0;
+
+  const dernieresPhotos = photosForSelected.slice(0, 4);
 
   return (
     <div className="space-y-6">
@@ -102,9 +84,14 @@ export function DashboardView() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border border-surface-dark bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2">
-            <CalendarClock className="h-5 w-5 text-accent-blue" />
-            <h2 className="text-lg font-semibold text-brand">Prochaines échéances</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="h-5 w-5 text-accent-blue" />
+              <h2 className="text-lg font-semibold text-brand">Prochaines échéances</h2>
+            </div>
+            <Link href="/taches" className="text-xs font-medium text-accent-blue">
+              Voir tâches
+            </Link>
           </div>
           {(kpis?.prochainesEcheances.length ?? 0) === 0 ? (
             <p className="text-sm text-gray-400">Aucune échéance planifiée.</p>
@@ -120,7 +107,7 @@ export function DashboardView() {
                     <p className="text-xs capitalize text-gray-400">{tache.priorite}</p>
                   </div>
                   <time className="shrink-0 text-xs font-medium text-accent-blue">
-                    {tache.echeance ? formatDate(tache.echeance) : "—"}
+                    {tache.echeance ? formatDateFr(tache.echeance) : "—"}
                   </time>
                 </li>
               ))}
@@ -129,11 +116,34 @@ export function DashboardView() {
         </section>
 
         <section className="rounded-2xl border border-surface-dark bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2">
-            <Camera className="h-5 w-5 text-accent-cyan" />
-            <h2 className="text-lg font-semibold text-brand">Dernières photos</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Camera className="h-5 w-5 text-accent-cyan" />
+              <h2 className="text-lg font-semibold text-brand">Dernières photos</h2>
+            </div>
+            <Link href="/photos" className="text-xs font-medium text-accent-blue">
+              Voir tout
+            </Link>
           </div>
-          <p className="text-sm text-gray-400">Module photos — bientôt disponible.</p>
+          {dernieresPhotos.length === 0 ? (
+            <p className="text-sm text-gray-400">Aucune photo.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {dernieresPhotos.map((photo) => (
+                <div
+                  key={photo.id}
+                  className="overflow-hidden rounded-xl border border-surface-dark"
+                >
+                  <img
+                    src={photo.url}
+                    alt=""
+                    className="aspect-video w-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>

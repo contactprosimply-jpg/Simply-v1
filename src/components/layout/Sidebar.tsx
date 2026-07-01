@@ -18,16 +18,16 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard, enabled: true },
-  { href: "/taches", label: "Tâches", icon: ListTodo, enabled: true },
-  { href: "/plans", label: "Plans", icon: Map, enabled: false },
-  { href: "/planning", label: "Planning", icon: Calendar, enabled: false },
-  { href: "/budget", label: "Budget", icon: Wallet, enabled: false },
-  { href: "/photos", label: "Photos", icon: Camera, enabled: false },
-  { href: "/comptes-rendus", label: "Comptes rendus", icon: FileText, enabled: false },
-  { href: "/pointage", label: "Pointage", icon: Clock, enabled: false },
-  { href: "/reunions", label: "PV réunions", icon: Users, enabled: false },
-  { href: "/certificats", label: "Certificats", icon: Award, enabled: false },
+  { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
+  { href: "/taches", label: "Tâches", icon: ListTodo },
+  { href: "/plans", label: "Plans", icon: Map },
+  { href: "/planning", label: "Planning", icon: Calendar },
+  { href: "/budget", label: "Budget", icon: Wallet },
+  { href: "/photos", label: "Photos", icon: Camera },
+  { href: "/comptes-rendus", label: "Comptes rendus", icon: FileText },
+  { href: "/pointage", label: "Pointage", icon: Clock },
+  { href: "/reunions", label: "PV réunions", icon: Users },
+  { href: "/certificats", label: "Certificats", icon: Award },
 ];
 
 interface SidebarProps {
@@ -76,30 +76,20 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="space-y-1">
-            {navItems.map(({ href, label, icon: Icon, enabled }) => (
+            {navItems.map(({ href, label, icon: Icon }) => (
               <li key={href}>
-                {enabled ? (
-                  <Link
-                    href={href}
-                    onClick={onClose}
-                    className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                      pathname === href
-                        ? "bg-white/15 text-white"
-                        : "text-white/75 hover:bg-white/10 hover:text-white"
-                    }`}
-                  >
-                    <Icon className="h-5 w-5 shrink-0" />
-                    {label}
-                  </Link>
-                ) : (
-                  <span className="flex min-h-11 cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/35">
-                    <Icon className="h-5 w-5 shrink-0" />
-                    {label}
-                    <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide">
-                      bientôt
-                    </span>
-                  </span>
-                )}
+                <Link
+                  href={href}
+                  onClick={onClose}
+                  className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                    pathname === href
+                      ? "bg-white/15 text-white"
+                      : "text-white/75 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  <Icon className="h-5 w-5 shrink-0" />
+                  {label}
+                </Link>
               </li>
             ))}
           </ul>
