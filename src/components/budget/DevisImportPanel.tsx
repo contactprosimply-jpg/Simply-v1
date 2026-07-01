@@ -55,6 +55,8 @@ export const DevisImportPanel = forwardRef<DevisImportPanelHandle, DevisImportPa
     const inputRef = useRef<HTMLInputElement>(null);
     const cloudIdRef = useRef<string | null>(supabaseChantierId);
     const [configured, setConfigured] = useState<boolean | null>(null);
+    const [missingEnv, setMissingEnv] = useState<string[]>([]);
+    const [hasDefaultOwner, setHasDefaultOwner] = useState(true);
     const [cloudId, setCloudId] = useState<string | null>(supabaseChantierId);
     const [imports, setImports] = useState<DevisImportRow[]>([]);
     const [loading, setLoading] = useState(false);
@@ -78,8 +80,19 @@ export const DevisImportPanel = forwardRef<DevisImportPanelHandle, DevisImportPa
     useEffect(() => {
       fetch("/api/health/supabase")
         .then((r) => r.json())
-        .then((json: { data?: { configured?: boolean } }) => setConfigured(json.data?.configured ?? false))
-        .catch(() => setConfigured(false));
+        .then(
+          (json: {
+            data?: { configured?: boolean; missing?: string[]; hasDefaultOwner?: boolean };
+          }) => {
+            setConfigured(json.data?.configured ?? false);
+            setMissingEnv(json.data?.missing ?? []);
+            setHasDefaultOwner(json.data?.hasDefaultOwner ?? false);
+          },
+        )
+        .catch(() => {
+          setConfigured(false);
+          setMissingEnv([]);
+        });
     }, []);
 
     const loadImports = useCallback(async (id: string) => {
@@ -218,11 +231,34 @@ export const DevisImportPanel = forwardRef<DevisImportPanelHandle, DevisImportPa
       return (
         <>
           {fileInput}
-          <Card className="space-y-2">
+          <Card className="space-y-3">
             <p className="text-sm font-medium text-brand">Import devis / DPGF (cloud)</p>
             <p className="text-sm text-gray-500">
-              Configurez les variables Supabase sur Vercel pour activer l&apos;upload cloud.
+              Ajoutez les variables sur Vercel puis redéployez le projet.
             </p>
+            {missingEnv.length > 0 && (
+              <ul className="list-inside list-disc text-sm text-red-700">
+                {missingEnv.map((name) => (
+                  <li key={name}>
+                    <code className="text-xs">{name}</code>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!hasDefaultOwner && (
+              <p className="text-sm text-amber-800">
+                Recommandé aussi : <code className="text-xs">SUPABASE_DEFAULT_OWNER_ID</code> (UUID
+                utilisateur Supabase → Authentication → Users).
+              </p>
+            )}
+            <a
+              href="https://vercel.com/planning-nikodex/simply-v1/settings/environment-variables"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex text-sm font-medium text-orange-600 underline"
+            >
+              Ouvrir les variables Vercel →
+            </a>
             {error && <AlertBanner variant="danger">{error}</AlertBanner>}
           </Card>
         </>

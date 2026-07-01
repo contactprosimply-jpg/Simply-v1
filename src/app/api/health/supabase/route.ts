@@ -1,8 +1,13 @@
 import { apiOk } from "@/lib/api-response";
-import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { getMissingSupabaseEnvVars, isSupabaseConfigured } from "@/lib/supabase/env";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return apiOk({ configured: isSupabaseConfigured() });
+  const missing = getMissingSupabaseEnvVars();
+  return apiOk({
+    configured: isSupabaseConfigured(),
+    missing,
+    hasDefaultOwner: Boolean(process.env.SUPABASE_DEFAULT_OWNER_ID),
+  });
 }
