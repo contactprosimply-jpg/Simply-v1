@@ -1,0 +1,15 @@
+---
+description: Règles d'or Simply BTP
+alwaysApply: true
+---
+
+# Simply BTP — règles projet
+
+- Accès Supabase UNIQUEMENT via routes/handlers server-side, server actions ou server components. JAMAIS de client Supabase dans le navigateur, jamais d'appel direct navigateur → supabase.co. Pas de `createBrowserClient`.
+- JAMAIS de Supabase Realtime sur des tables à gros volume — utiliser du polling propre à la place.
+- Toute route API / handler qui touche des données authentifiées porte : `export const dynamic = 'force-dynamic'`.
+- `createAdminClient()` renvoie TOUJOURS une nouvelle instance (jamais un client mis en cache au niveau module).
+- Vérifier l'identité avec `getUser()` / `getClaims()` côté serveur — ne jamais faire confiance à `getSession()` pour une décision d'autorisation.
+- Next.js 16 : `params` et `searchParams` sont des Promises → toujours `await params`.
+- Middleware = fichier `proxy.ts` (renommé en Next 16), pas `middleware.ts`.
+- App terrain-first : mobile/tablette en priorité, zones tactiles confortables, couleur de marque `#021246`.
