@@ -19,22 +19,24 @@ export function TacheCard({ tache, onEdit, onDelete, onStatutChange }: TacheCard
 
   return (
     <article
-      className={`rounded-xl border bg-white p-4 shadow-sm transition ${
-        enRetard ? "border-amber-300" : "border-surface-dark"
+      className={`card-premium group p-4 transition ${
+        enRetard ? "ring-2 ring-amber-300/60" : ""
       }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <h3 className="font-medium text-brand">{tache.titre}</h3>
+          <h3 className="font-semibold text-brand">{tache.titre}</h3>
           {tache.description && (
-            <p className="mt-1 line-clamp-2 text-sm text-gray-500">{tache.description}</p>
+            <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink-muted">
+              {tache.description}
+            </p>
           )}
         </div>
         <div className="relative">
           <button
             type="button"
             onClick={() => setMenuOpen((o) => !o)}
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 hover:bg-surface"
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-ink-muted opacity-60 transition hover:bg-surface hover:opacity-100"
             aria-label="Actions"
           >
             <MoreVertical className="h-5 w-5" />
@@ -47,7 +49,7 @@ export function TacheCard({ tache, onEdit, onDelete, onStatutChange }: TacheCard
                 onClick={() => setMenuOpen(false)}
                 aria-label="Fermer"
               />
-              <div className="absolute right-0 z-20 mt-1 w-44 rounded-xl border border-surface-dark bg-white py-1 shadow-lg">
+              <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-surface-dark bg-white py-1 shadow-[var(--shadow-card-hover)]">
                 <button
                   type="button"
                   onClick={() => {
@@ -78,20 +80,20 @@ export function TacheCard({ tache, onEdit, onDelete, onStatutChange }: TacheCard
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {priorite && (
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${priorite.color}`}>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${priorite.color}`}>
             {priorite.label}
           </span>
         )}
         {tache.echeance && (
-          <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+          <span className="inline-flex items-center gap-1 rounded-full bg-surface px-2.5 py-0.5 text-xs text-ink-muted">
             <Calendar className="h-3.5 w-3.5" />
             {formatEcheance(tache.echeance)}
           </span>
         )}
         {enRetard && (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
             <AlertTriangle className="h-3.5 w-3.5" />
-            En retard
+            Retard
           </span>
         )}
       </div>
@@ -102,7 +104,7 @@ export function TacheCard({ tache, onEdit, onDelete, onStatutChange }: TacheCard
             <button
               type="button"
               onClick={() => onStatutChange(tache.id, "en_cours")}
-              className="h-10 flex-1 rounded-lg bg-accent-blue/10 text-sm font-medium text-accent-blue"
+              className="h-10 flex-1 rounded-xl bg-gradient-to-r from-accent-blue/15 to-accent-blue/5 text-sm font-semibold text-accent-blue transition hover:from-accent-blue/25"
             >
               Démarrer
             </button>
@@ -111,7 +113,7 @@ export function TacheCard({ tache, onEdit, onDelete, onStatutChange }: TacheCard
             <button
               type="button"
               onClick={() => onStatutChange(tache.id, "termine")}
-              className="h-10 flex-1 rounded-lg bg-accent-cyan/10 text-sm font-medium text-teal-700"
+              className="h-10 flex-1 rounded-xl bg-gradient-to-r from-accent-cyan/20 to-teal-50 text-sm font-semibold text-teal-700 transition hover:from-accent-cyan/30"
             >
               Terminer
             </button>

@@ -50,9 +50,9 @@ export function TacheForm({ open, tache, onClose, onSubmit }: TacheFormProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-brand/40 p-4 sm:items-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-brand/50 p-4 backdrop-blur-sm sm:items-center">
       <button type="button" className="absolute inset-0" onClick={onClose} aria-label="Fermer" />
-      <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="relative z-10 w-full max-w-lg animate-fade-in-up rounded-2xl bg-white p-6 shadow-[var(--shadow-glow)] ring-1 ring-surface-dark">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-brand">
             {tache ? "Modifier la tâche" : "Nouvelle tâche"}
@@ -147,10 +147,7 @@ export function TacheForm({ open, tache, onClose, onSubmit }: TacheFormProps) {
             </div>
           )}
 
-          <button
-            type="submit"
-            className="h-12 w-full rounded-xl bg-accent-blue text-sm font-semibold text-white hover:opacity-95"
-          >
+          <button type="submit" className="btn-primary-gradient h-12 w-full rounded-xl text-sm font-semibold text-white">
             {tache ? "Enregistrer" : "Créer la tâche"}
           </button>
         </form>

@@ -41,7 +41,7 @@ export function BudgetView() {
 
   return (
     <ChantierGate message="Créez un chantier pour gérer le budget.">
-      <div className="space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <PageHeader title="Budget" subtitle={selectedChantier?.nom} />
           <BtnPrimary onClick={() => setShowForm(true)}>

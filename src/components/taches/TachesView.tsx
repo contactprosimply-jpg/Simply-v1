@@ -77,11 +77,23 @@ export function TachesView() {
     }
   };
 
-  const column = (statut: TacheStatut, label: string) => (
-    <section key={statut} className="flex min-w-0 flex-col">
-      <div className="mb-3 flex items-center justify-between">
+  const columnStyles: Record<TacheStatut, { bar: string; bg: string }> = {
+    a_faire: { bar: "bg-slate-400", bg: "bg-slate-50/80" },
+    en_cours: { bar: "bg-accent-blue", bg: "bg-accent-blue/5" },
+    termine: { bar: "bg-accent-cyan", bg: "bg-teal-50/80" },
+  };
+
+  const column = (statut: TacheStatut, label: string) => {
+    const style = columnStyles[statut];
+    return (
+    <section
+      key={statut}
+      className={`flex min-w-0 flex-col rounded-2xl p-3 ring-1 ring-surface-dark/60 ${style.bg}`}
+    >
+      <div className="mb-3 flex items-center gap-2">
+        <span className={`h-2 w-2 rounded-full ${style.bar}`} />
         <h2 className="text-sm font-semibold text-brand">{label}</h2>
-        <span className="rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium text-gray-500">
+        <span className="ml-auto rounded-full bg-white/80 px-2.5 py-0.5 text-xs font-bold text-brand shadow-sm">
           {byStatut[statut].length}
         </span>
       </div>
@@ -90,9 +102,9 @@ export function TachesView() {
           <button
             type="button"
             onClick={openCreate}
-            className="rounded-xl border border-dashed border-surface-dark py-8 text-center text-sm text-gray-500 hover:bg-surface"
+            className="rounded-xl border-2 border-dashed border-surface-dark/80 bg-white/50 py-10 text-center text-sm font-medium text-ink-muted transition hover:border-accent-blue/40 hover:bg-white hover:text-accent-blue"
           >
-            Ajouter une tâche
+            + Ajouter une tâche
           </button>
         ) : (
           byStatut[statut].map((tache) => (
@@ -108,9 +120,10 @@ export function TachesView() {
       </div>
     </section>
   );
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <PageHeader title="Tâches" subtitle={selectedChantier.nom} />
         <BtnPrimary onClick={openCreate}>
@@ -120,14 +133,16 @@ export function TachesView() {
       </div>
 
       {/* Mobile : onglets */}
-      <div className="flex gap-1 rounded-xl bg-surface p-1 md:hidden">
+      <div className="flex gap-1.5 rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-surface-dark md:hidden">
         {TACHE_STATUTS.map((s) => (
           <button
             key={s.value}
             type="button"
             onClick={() => setMobileTab(s.value)}
-            className={`flex-1 rounded-lg py-2.5 text-xs font-medium transition sm:text-sm ${
-              mobileTab === s.value ? "bg-white text-brand shadow-sm" : "text-gray-500"
+            className={`flex-1 rounded-xl py-2.5 text-xs font-semibold transition sm:text-sm ${
+              mobileTab === s.value
+                ? "bg-gradient-to-r from-accent-blue to-accent-blue/90 text-white shadow-md"
+                : "text-ink-muted hover:bg-surface"
             }`}
           >
             {s.label} ({byStatut[s.value].length})
