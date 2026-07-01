@@ -76,13 +76,10 @@ export function BudgetView() {
           <div className="flex flex-wrap gap-2">
             <BtnSecondary
               disabled={importingDevis}
-              onClick={() => {
-                setImportingDevis(true);
-                void devisImportRef.current?.openImport().finally(() => setImportingDevis(false));
-              }}
+              onClick={() => devisImportRef.current?.pickFile()}
             >
               <FileSpreadsheet className="h-5 w-5" />
-              {importingDevis ? "Préparation…" : "Importer devis"}
+              {importingDevis ? "Import en cours…" : "Importer devis"}
             </BtnSecondary>
             <BtnPrimary onClick={() => { reset(); setShowForm(true); }}>
               <Plus className="h-5 w-5" />
@@ -121,6 +118,7 @@ export function BudgetView() {
           <DevisImportPanel
             ref={devisImportRef}
             hideActions
+            onBusyChange={setImportingDevis}
             chantierNom={selectedChantier.nom}
             chantierClient={selectedChantier.client}
             chantierMontant={selectedChantier.montant}
