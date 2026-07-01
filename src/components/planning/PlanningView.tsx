@@ -50,7 +50,8 @@ export function PlanningView() {
                   {taches.map((t) => (
                     <li
                       key={t.id}
-                      className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 text-sm"
+                      className="flex cursor-pointer items-center justify-between rounded-xl bg-surface px-4 py-3 text-sm transition hover:bg-accent-blue/10"
+                      onClick={() => router.push("/taches")}
                     >
                       <span className="font-medium text-brand">{t.titre}</span>
                       <span className="capitalize text-gray-400">{t.statut.replace("_", " ")}</span>

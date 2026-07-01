@@ -3,7 +3,8 @@
 import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useChantiers } from "@/components/providers/ChantierProvider";
-import { BtnDanger, BtnPrimary, Card, ChantierGate, EmptyState, AlertBanner, FormInput, PageHeader } from "@/components/ui/PageShell";
+import { BtnDanger, BtnPrimary, BtnSecondary, Card, ChantierGate, EmptyState, AlertBanner, FormInput, PageHeader } from "@/components/ui/PageShell";
+import { LotSelect } from "@/components/ui/LotSelect";
 import { formatCurrency, formatDateFr, type BudgetType } from "@/lib/types";
 
 const TYPES: { value: BudgetType; label: string }[] = [
@@ -13,12 +14,45 @@ const TYPES: { value: BudgetType; label: string }[] = [
 ];
 
 export function BudgetView() {
-  const { selectedChantier, budgetForSelected, createBudgetLigne, deleteBudgetLigne } = useChantiers();
+  const { selectedChantier, budgetForSelected, createBudgetLigne, updateBudgetLigne, deleteBudgetLigne } = useChantiers();
   const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [type, setType] = useState<BudgetType>("devis");
   const [libelle, setLibelle] = useState("");
   const [montant, setMontant] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [lot, setLot] = useState("");
+
+  const reset = () => {
+    setLibelle("");
+    setMontant("");
+    setLot("");
+    setEditId(null);
+    setShowForm(false);
+  };
+
+  const openEdit = (id: string) => {
+    const l = budgetForSelected.find((x) => x.id === id);
+    if (!l) return;
+    setEditId(id);
+    setType(l.type);
+    setLibelle(l.libelle);
+    setMontant(String(l.montant));
+    setDate(l.date.slice(0, 10));
+    setLot(l.lot ?? "");
+    setShowForm(true);
+  };
+
+  const handleSave = () => {
+    const m = parseFloat(montant);
+    if (!libelle.trim() || isNaN(m)) return;
+    if (editId) {
+      updateBudgetLigne(editId, { type, libelle: libelle.trim(), montant: m, date, lot: lot || null });
+    } else {
+      createBudgetLigne(type, libelle.trim(), m, date, lot || undefined);
+    }
+    reset();
+  };
 
   const summary = useMemo(() => {
     const prevu = budgetForSelected.filter((b) => b.type === "devis").reduce((s, b) => s + b.montant, 0);
@@ -30,21 +64,13 @@ export function BudgetView() {
     return { prevu, consomme, marge, pct };
   }, [budgetForSelected]);
 
-  const handleAdd = () => {
-    const m = parseFloat(montant);
-    if (!libelle.trim() || isNaN(m)) return;
-    createBudgetLigne(type, libelle.trim(), m, date);
-    setLibelle("");
-    setMontant("");
-    setShowForm(false);
-  };
 
   return (
     <ChantierGate message="Créez un chantier pour gérer le budget.">
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <PageHeader title="Budget" subtitle={selectedChantier?.nom} />
-          <BtnPrimary onClick={() => setShowForm(true)}>
+          <BtnPrimary onClick={() => { reset(); setShowForm(true); }}>
             <Plus className="h-5 w-5" />
             Ajouter une ligne
           </BtnPrimary>
@@ -90,16 +116,15 @@ export function BudgetView() {
               ))}
             </select>
             <FormInput placeholder="Libellé" value={libelle} onChange={(e) => setLibelle(e.target.value)} />
+            <LotSelect value={lot} onChange={setLot} />
             <div className="grid gap-3 sm:grid-cols-2">
-              <FormInput
-                type="number"
-                placeholder="Montant €"
-                value={montant}
-                onChange={(e) => setMontant(e.target.value)}
-              />
+              <FormInput type="number" placeholder="Montant €" value={montant} onChange={(e) => setMontant(e.target.value)} />
               <FormInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
-            <BtnPrimary onClick={handleAdd}>Enregistrer</BtnPrimary>
+            <div className="flex gap-2">
+              <BtnPrimary onClick={handleSave}>{editId ? "Mettre à jour" : "Enregistrer"}</BtnPrimary>
+              <BtnSecondary onClick={reset}>Annuler</BtnSecondary>
+            </div>
           </Card>
         )}
 
@@ -117,11 +142,12 @@ export function BudgetView() {
                   <div>
                     <p className="font-medium text-brand">{l.libelle}</p>
                     <p className="text-xs capitalize text-gray-400">
-                      {l.type} · {formatDateFr(l.date)}
+                      {l.type} · {formatDateFr(l.date)}{l.lot ? ` · ${l.lot}` : ""}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <span className="font-semibold text-brand">{formatCurrency(l.montant)}</span>
+                    <BtnSecondary onClick={() => openEdit(l.id)}>Modifier</BtnSecondary>
                     <BtnDanger onClick={() => deleteBudgetLigne(l.id)}>Supprimer</BtnDanger>
                   </div>
                 </Card>

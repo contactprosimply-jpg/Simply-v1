@@ -2,11 +2,37 @@ export type ChantierStatut = "planifie" | "en_cours" | "suspendu" | "termine";
 export type TacheStatut = "a_faire" | "en_cours" | "termine";
 export type TachePriorite = "basse" | "normale" | "haute" | "urgente";
 export type BudgetType = "devis" | "facture" | "depense";
+export type ReserveStatut = "ouverte" | "en_cours" | "levee";
+export type CertificatType =
+  | "reception_provisoire"
+  | "reception_definitive"
+  | "levee_reserves"
+  | "autre";
+
+export const CERTIFICAT_TYPES: { value: CertificatType; label: string }[] = [
+  { value: "reception_provisoire", label: "Réception provisoire" },
+  { value: "reception_definitive", label: "Réception définitive" },
+  { value: "levee_reserves", label: "Levée de réserves" },
+  { value: "autre", label: "Autre" },
+];
+
+export const LOTS_BTP = [
+  "Gros œuvre",
+  "Menuiserie",
+  "Électricité",
+  "Plomberie",
+  "CVC",
+  "Peinture",
+  "Carrelage",
+  "Étanchéité",
+  "Autre",
+];
 
 export interface Chantier {
   id: string;
   nom: string;
   client: string | null;
+  adresse: string | null;
   montant: number | null;
   statut: ChantierStatut;
   createdAt: string;
@@ -21,6 +47,19 @@ export interface Tache {
   priorite: TachePriorite;
   echeance: string | null;
   retard: boolean;
+  lot: string | null;
+  reserveId: string | null;
+  createdAt: string;
+}
+
+export interface Reserve {
+  id: string;
+  chantierId: string;
+  titre: string;
+  description: string | null;
+  lot: string | null;
+  statut: ReserveStatut;
+  tacheId: string | null;
   createdAt: string;
 }
 
@@ -29,6 +68,7 @@ export interface Plan {
   chantierId: string;
   nom: string;
   pdfUrl: string;
+  lot: string | null;
   createdAt: string;
 }
 
@@ -38,6 +78,8 @@ export interface Photo {
   url: string;
   tags: string[];
   note: string | null;
+  tacheId: string | null;
+  reserveId: string | null;
   createdAt: string;
 }
 
@@ -48,6 +90,7 @@ export interface BudgetLigne {
   libelle: string;
   montant: number;
   date: string;
+  lot: string | null;
 }
 
 export interface CompteRendu {
@@ -81,15 +124,17 @@ export interface Reunion {
 export interface Certificat {
   id: string;
   chantierId: string;
-  type: string;
+  type: CertificatType | string;
   contenu: string;
   date: string;
   createdAt: string;
 }
 
 export interface AppData {
+  version: number;
   chantiers: Chantier[];
   taches: Tache[];
+  reserves: Reserve[];
   plans: Plan[];
   photos: Photo[];
   budgetLignes: BudgetLigne[];
@@ -106,12 +151,13 @@ export interface DashboardKpis {
   budgetPrevu: number;
   budgetConsomme: number;
   photosCount: number;
+  reservesOuvertes: number;
   prochainesEcheances: Tache[];
 }
 
 export function computeKpis(
   chantierId: string,
-  data: Pick<AppData, "taches" | "budgetLignes" | "photos">,
+  data: Pick<AppData, "taches" | "budgetLignes" | "photos" | "reserves">,
 ): DashboardKpis {
   const scoped = data.taches.filter((t) => t.chantierId === chantierId);
   const total = scoped.length;
@@ -137,6 +183,9 @@ export function computeKpis(
     .reduce((s, b) => s + b.montant, 0);
 
   const photosCount = data.photos.filter((p) => p.chantierId === chantierId).length;
+  const reservesOuvertes = (data.reserves ?? []).filter(
+    (r) => r.chantierId === chantierId && r.statut !== "levee",
+  ).length;
 
   return {
     avancementPct: total === 0 ? 0 : Math.round((done / total) * 100),
@@ -144,6 +193,7 @@ export function computeKpis(
     budgetPrevu,
     budgetConsomme,
     photosCount,
+    reservesOuvertes,
     prochainesEcheances,
   };
 }
@@ -162,4 +212,18 @@ export function formatCurrency(amount: number) {
     currency: "EUR",
     maximumFractionDigits: 0,
   });
+}
+
+export function certificatLabel(type: string) {
+  return CERTIFICAT_TYPES.find((t) => t.value === type)?.label ?? type;
+}
+
+/** Extrait les actions d'un PV (lignes commençant par - ou •) */
+export function extractActionsFromPv(contenu: string): string[] {
+  return contenu
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => /^[-•*]\s+/.test(l))
+    .map((l) => l.replace(/^[-•*]\s+/, "").trim())
+    .filter(Boolean);
 }

@@ -2,6 +2,7 @@
 
 import { Menu } from "lucide-react";
 import { ChantierSelector } from "@/components/ChantierSelector";
+import { ChantierSettingsButton } from "@/components/chantier/ChantierSettings";
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -20,11 +21,14 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           <Menu className="h-5 w-5" />
         </button>
 
-        <div className="min-w-0 flex-1">
-          <p className="mb-1 hidden text-[10px] font-semibold uppercase tracking-widest text-ink-muted sm:block">
-            Chantier
-          </p>
-          <ChantierSelector />
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="mb-1 hidden text-[10px] font-semibold uppercase tracking-widest text-ink-muted sm:block">
+              Chantier
+            </p>
+            <ChantierSelector />
+          </div>
+          <ChantierSettingsButton />
         </div>
       </div>
     </header>

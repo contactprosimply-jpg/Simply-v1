@@ -13,6 +13,7 @@ import {
   Clock,
   Users,
   Award,
+  ClipboardList,
   HardHat,
   X,
 } from "lucide-react";
@@ -20,6 +21,7 @@ import {
 const navItems = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/taches", label: "Tâches", icon: ListTodo },
+  { href: "/reserves", label: "Réserves", icon: ClipboardList },
   { href: "/plans", label: "Plans", icon: Map },
   { href: "/planning", label: "Planning", icon: Calendar },
   { href: "/budget", label: "Budget", icon: Wallet },

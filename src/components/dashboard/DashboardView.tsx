@@ -9,6 +9,7 @@ import {
   CalendarClock,
   ChevronRight,
   MapPin,
+  ClipboardList,
 } from "lucide-react";
 import { useMemo } from "react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
@@ -79,7 +80,7 @@ export function DashboardView() {
       </div>
 
       {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <KpiCard
           className="animate-fade-in-up stagger-1"
           title="Avancement"
@@ -114,6 +115,35 @@ export function DashboardView() {
           icon={Camera}
           accent="cyan"
         />
+        <Link href="/reserves" className="block">
+          <KpiCard
+            className="animate-fade-in-up stagger-4 h-full transition hover:scale-[1.02]"
+            title="Réserves"
+            value={String(kpis?.reservesOuvertes ?? 0)}
+            subtitle="À lever"
+            icon={ClipboardList}
+            accent={(kpis?.reservesOuvertes ?? 0) > 0 ? "warning" : "blue"}
+          />
+        </Link>
+      </div>
+
+      {/* Raccourcis */}
+      <div className="flex flex-wrap gap-2">
+        <Link href="/taches" className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-brand shadow-sm ring-1 ring-surface-dark hover:ring-accent-blue/30">
+          Tâches
+        </Link>
+        <Link href="/reserves" className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-brand shadow-sm ring-1 ring-surface-dark hover:ring-accent-blue/30">
+          Réserves
+        </Link>
+        <Link href="/planning" className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-brand shadow-sm ring-1 ring-surface-dark hover:ring-accent-blue/30">
+          Planning
+        </Link>
+        <Link href="/budget" className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-brand shadow-sm ring-1 ring-surface-dark hover:ring-accent-blue/30">
+          Budget
+        </Link>
+        <Link href="/photos" className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-brand shadow-sm ring-1 ring-surface-dark hover:ring-accent-blue/30">
+          Photos
+        </Link>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">

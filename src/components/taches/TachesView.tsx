@@ -58,6 +58,7 @@ export function TachesView() {
     priorite: Tache["priorite"];
     echeance: string;
     statut: TacheStatut;
+    lot: string;
   }) => {
     if (editing) {
       updateTache(editing.id, {
@@ -66,6 +67,7 @@ export function TachesView() {
         priorite: data.priorite,
         echeance: data.echeance || null,
         statut: data.statut,
+        lot: data.lot || null,
       });
     } else {
       createTache({
@@ -73,6 +75,7 @@ export function TachesView() {
         description: data.description || undefined,
         priorite: data.priorite,
         echeance: data.echeance || undefined,
+        lot: data.lot || undefined,
       });
     }
   };

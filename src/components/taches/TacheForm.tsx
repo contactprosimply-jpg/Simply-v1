@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
+import { LotSelect } from "@/components/ui/LotSelect";
 import { TACHE_PRIORITES, TACHE_STATUTS } from "@/lib/taches";
 import type { Tache, TachePriorite, TacheStatut } from "@/lib/types";
 
@@ -15,6 +16,7 @@ interface TacheFormProps {
     priorite: TachePriorite;
     echeance: string;
     statut: TacheStatut;
+    lot: string;
   }) => void;
 }
 
@@ -24,6 +26,7 @@ export function TacheForm({ open, tache, onClose, onSubmit }: TacheFormProps) {
   const [priorite, setPriorite] = useState<TachePriorite>("normale");
   const [echeance, setEcheance] = useState("");
   const [statut, setStatut] = useState<TacheStatut>("a_faire");
+  const [lot, setLot] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -32,6 +35,7 @@ export function TacheForm({ open, tache, onClose, onSubmit }: TacheFormProps) {
     setPriorite(tache?.priorite ?? "normale");
     setEcheance(tache?.echeance?.slice(0, 10) ?? "");
     setStatut(tache?.statut ?? "a_faire");
+    setLot(tache?.lot ?? "");
   }, [open, tache]);
 
   if (!open) return null;
@@ -45,6 +49,7 @@ export function TacheForm({ open, tache, onClose, onSubmit }: TacheFormProps) {
       priorite,
       echeance,
       statut,
+      lot,
     });
     onClose();
   };
@@ -125,6 +130,11 @@ export function TacheForm({ open, tache, onClose, onSubmit }: TacheFormProps) {
                 className="h-12 w-full rounded-xl border border-surface-dark px-4 text-sm"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-brand">Lot</label>
+            <LotSelect value={lot} onChange={setLot} />
           </div>
 
           {tache && (
