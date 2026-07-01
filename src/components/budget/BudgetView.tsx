@@ -6,6 +6,7 @@ import { useMemo, useRef, useState } from "react";
 import { useChantiers } from "@/components/providers/ChantierProvider";
 import { BtnDanger, BtnPrimary, BtnSecondary, Card, ChantierGate, EmptyState, AlertBanner, FormInput, PageHeader } from "@/components/ui/PageShell";
 import { LotSelect } from "@/components/ui/LotSelect";
+import type { DevisAnalyzeResult } from "@/lib/devis-parser/types";
 import { formatCurrency, formatDateFr, type BudgetType } from "@/lib/types";
 
 const TYPES: { value: BudgetType; label: string }[] = [
@@ -15,7 +16,7 @@ const TYPES: { value: BudgetType; label: string }[] = [
 ];
 
 export function BudgetView() {
-  const { selectedChantier, budgetForSelected, createBudgetLigne, updateBudgetLigne, deleteBudgetLigne, updateChantier } = useChantiers();
+  const { selectedChantier, budgetForSelected, createBudgetLigne, updateBudgetLigne, deleteBudgetLigne, updateChantier, createTachesFromDevis } = useChantiers();
   const devisImportRef = useRef<DevisImportPanelHandle>(null);
   const [importingDevis, setImportingDevis] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -67,6 +68,24 @@ export function BudgetView() {
     return { prevu, consomme, marge, pct };
   }, [budgetForSelected]);
 
+  const handleDevisAnalyzed = (result: DevisAnalyzeResult, nomFichier: string) => {
+    if (!selectedChantier) return;
+    if (result.prixFinal != null) {
+      updateChantier(selectedChantier.id, { montant: result.prixFinal });
+      const label = `Devis — ${nomFichier}`;
+      const exists = budgetForSelected.some((b) => b.type === "devis" && b.libelle === label);
+      if (!exists) {
+        createBudgetLigne("devis", label, result.prixFinal, new Date().toISOString().slice(0, 10));
+      }
+    }
+    createTachesFromDevis(
+      result.taches.map((t) => ({
+        titre: t.titre,
+        description: t.description,
+        lot: t.lot,
+      })),
+    );
+  };
 
   return (
     <ChantierGate message="Créez un chantier pour gérer le budget.">
@@ -126,6 +145,7 @@ export function BudgetView() {
             onLinked={(supabaseChantierId) =>
               updateChantier(selectedChantier.id, { supabaseChantierId })
             }
+            onAnalyzed={handleDevisAnalyzed}
           />
         )}
 

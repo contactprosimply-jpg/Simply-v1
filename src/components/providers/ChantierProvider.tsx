@@ -87,6 +87,9 @@ interface AppContextValue {
   deleteChantier: (id: string) => void;
   createTache: (input: CreateTacheInput) => string;
   createTachesBulk: (titres: string[]) => void;
+  createTachesFromDevis: (
+    items: { titre: string; description?: string | null; lot?: string | null }[],
+  ) => void;
   updateTache: (id: string, input: UpdateTacheInput) => void;
   updateTacheStatut: (id: string, statut: TacheStatut) => void;
   deleteTache: (id: string) => void;
@@ -259,6 +262,33 @@ export function ChantierProvider({ children }: { children: ReactNode }) {
       titres.forEach((titre) => createTache({ titre, priorite: "normale" }));
     },
     [createTache],
+  );
+
+  const createTachesFromDevis = useCallback(
+    (items: { titre: string; description?: string | null; lot?: string | null }[]) => {
+      if (items.length === 0) return;
+      persist((prev) => {
+        const chantierId = requireChantierId(prev);
+        if (!chantierId) return prev;
+        const newTaches = items.map((item) =>
+          withRetardFlag({
+            id: crypto.randomUUID(),
+            chantierId,
+            titre: item.titre,
+            description: item.description ?? null,
+            statut: "a_faire" as TacheStatut,
+            priorite: "normale" as TachePriorite,
+            echeance: null,
+            lot: item.lot ?? null,
+            reserveId: null,
+            retard: false,
+            createdAt: new Date().toISOString(),
+          }),
+        );
+        return { ...prev, taches: [...newTaches, ...prev.taches] };
+      });
+    },
+    [persist],
   );
 
   const updateTache = useCallback(
@@ -619,6 +649,7 @@ export function ChantierProvider({ children }: { children: ReactNode }) {
       deleteChantier,
       createTache,
       createTachesBulk,
+      createTachesFromDevis,
       updateTache,
       updateTacheStatut,
       deleteTache,
@@ -658,6 +689,7 @@ export function ChantierProvider({ children }: { children: ReactNode }) {
       deleteChantier,
       createTache,
       createTachesBulk,
+      createTachesFromDevis,
       updateTache,
       updateTacheStatut,
       deleteTache,
