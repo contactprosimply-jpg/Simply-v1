@@ -1,6 +1,11 @@
 import { detectCorpsMetier } from "@/lib/devis-parser/corps-metier";
 import { isJunkLine, isPlausiblePoste } from "@/lib/devis-parser/filters";
-import { extractAmounts, parseFrenchNumber } from "@/lib/devis-parser/numbers";
+import {
+  normalizePdfLines,
+  POSITION_START_RE,
+  splitTableColumns,
+} from "@/lib/devis-parser/normalize-lines";
+import { extractAmounts, parseFrenchNumber, parseIntegerToken } from "@/lib/devis-parser/numbers";
 import type { ParsedDevis, ParsedPoste } from "@/lib/devis-parser/types";
 
 const UNITS = new Set([
@@ -33,7 +38,7 @@ const HEADER_LINE =
   /^(d[eé]signation|libell[eé]|poste|n°|numero|r[eé]f|qt[eé]|quantit[eé]|unit[eé]|p\.?u\.?|prix\s*unitaire|montant|total)\b/i;
 
 /** Position : 1, 1.1, 1.1.2, 01.001… */
-const POSITION_RE = /^(\d+(?:\.\d+)*)\s+(.+)$/;
+const POSITION_RE = POSITION_START_RE;
 
 function hasAmount(line: string): boolean {
   return extractAmounts(line).length > 0;
@@ -55,7 +60,7 @@ function parseUnitToken(token: string): string | null {
 
 function stripAmountsFromDesignation(body: string): string {
   return body
-    .replace(/\d{1,3}(?:\s\d{3})*,\d{2}|\d+,\d{2}/g, " ")
+    .replace(/\d{1,3}(?:\s\d{3})*[,.]\d{2}|\d+[,.]\d{2}/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -104,48 +109,20 @@ function assignAmountColumns(amounts: number[]): {
   return { quantite, prixUnitaire, prixTotal };
 }
 
-/** Ligne tabulaire : n° + libellé + qté + unité + PU + total */
-function tryParseStructuredRow(
+function buildPosteFromParts(
   line: string,
   lot: string | null,
   ordre: number,
+  numeroPosition: string | null,
+  designation: string,
+  unite: string | null,
+  quantite: number | null,
+  prixUnitaire: number | null,
+  prixTotal: number,
 ): ParsedPoste | null {
-  const posMatch = line.match(POSITION_RE);
-  if (!posMatch) return null;
-
-  const numeroPosition = posMatch[1]!;
-  const rest = posMatch[2]!;
-  const amounts = extractAmounts(rest);
-  if (amounts.length < 2) return null;
-
-  const cols = assignAmountColumns(amounts);
-  if (!cols) return null;
-
-  let { quantite, prixUnitaire, prixTotal } = cols;
-  let designation = stripAmountsFromDesignation(rest);
-
-  // Retire qté entière en fin de libellé (ex. "Fenêtre PVC 10")
-  if (quantite != null && Number.isInteger(quantite)) {
-    const qtyTail = new RegExp(`\\b${quantite}\\s*$`);
-    if (qtyTail.test(designation)) {
-      designation = designation.replace(qtyTail, "").trim();
-    }
-  }
-
-  const { designation: des2, unite } = extractUnitFromTail(designation);
-  designation = des2;
-
-  if (quantite == null && unite?.toLowerCase() === "u" && prixUnitaire != null && prixTotal != null) {
-    const ratio = prixTotal / prixUnitaire;
-    if (ratio >= 1 && ratio <= 9999 && Math.abs(ratio - Math.round(ratio)) < 0.01) {
-      quantite = Math.round(ratio);
-    }
-  }
-
   if (!isPlausiblePoste(line, designation, numeroPosition, quantite, prixUnitaire, prixTotal)) {
     return null;
   }
-
   return {
     numeroPosition,
     lot,
@@ -158,21 +135,138 @@ function tryParseStructuredRow(
   };
 }
 
+/** Colonnes séparées par 2+ espaces (tableau PDF). */
+function tryParseColumnRow(line: string, lot: string | null, ordre: number): ParsedPoste | null {
+  const cols = splitTableColumns(line);
+  if (cols.length < 3) return null;
+
+  let numeroPosition: string | null = null;
+  let i = 0;
+  if (/^\d+(?:\.\d+)*$/.test(cols[0]!)) {
+    numeroPosition = cols[0]!;
+    i = 1;
+  }
+
+  const tail = cols.slice(i);
+  const amounts: number[] = [];
+  const textCols: string[] = [];
+  let unite: string | null = null;
+  let quantite: number | null = null;
+
+  for (const col of tail) {
+    const amt = parseFrenchNumber(col);
+    if (amt != null && /[,.]\d{2}/.test(col)) {
+      amounts.push(amt);
+      continue;
+    }
+    const asInt = parseIntegerToken(col);
+    if (asInt != null && quantite == null) {
+      quantite = asInt;
+      continue;
+    }
+    const unit = parseUnitToken(col);
+    if (unit) {
+      unite = unit;
+      continue;
+    }
+    textCols.push(col);
+  }
+
+  if (amounts.length < 2 || textCols.length === 0) return null;
+
+  const cols2 = assignAmountColumns(amounts);
+  if (!cols2) return null;
+
+  let { prixUnitaire, prixTotal } = cols2;
+  if (quantite == null) quantite = cols2.quantite;
+
+  const designation = textCols.join(" ").trim();
+  if (designation.length < 3) return null;
+
+  return buildPosteFromParts(
+    line,
+    lot,
+    ordre,
+    numeroPosition,
+    designation,
+    unite,
+    quantite,
+    prixUnitaire,
+    prixTotal,
+  );
+}
+
+/** Ligne tabulaire : n° + libellé + qté + unité + PU + total */
+function tryParseStructuredRow(
+  line: string,
+  lot: string | null,
+  ordre: number,
+): ParsedPoste | null {
+  const posMatch = line.match(POSITION_RE);
+  if (!posMatch) return null;
+
+  const numeroPosition = posMatch[1]!;
+  const rest = posMatch[2]!;
+  if (extractAmounts(rest).length < 2) return null;
+
+  return finalizePosteLine(line, lot, ordre, numeroPosition, rest);
+}
+
 function parsePosteLine(line: string, lot: string | null, ordre: number): ParsedPoste | null {
   if (isJunkLine(line) || SKIP_LINE.test(line) || TOTAL_LINE.test(line) || HEADER_LINE.test(line)) {
     return null;
   }
 
+  const columnRow = tryParseColumnRow(line, lot, ordre);
+  if (columnRow) return columnRow;
+
   const structured = tryParseStructuredRow(line, lot, ordre);
   if (structured) return structured;
+
+  const amountTail = tryParseAmountTailLine(line, lot, ordre);
+  if (amountTail) return amountTail;
 
   const posMatch = line.match(POSITION_RE);
   const body = posMatch ? posMatch[2]! : line;
   const numeroPosition = posMatch?.[1] ?? null;
 
+  return finalizePosteLine(line, lot, ordre, numeroPosition, body);
+}
+
+/** Désignation + montants en queue de ligne (format PDF variable). */
+function tryParseAmountTailLine(
+  line: string,
+  lot: string | null,
+  ordre: number,
+): ParsedPoste | null {
+  const amountMatches = [...line.matchAll(/\d{1,3}(?:\s\d{3})*[,.]\d{2}|\d+[,.]\d{2}/g)];
+  if (amountMatches.length < 2) return null;
+
+  const firstIdx = amountMatches[0]!.index ?? 0;
+  let head = line.slice(0, firstIdx).trim();
+  if (head.length < 4) return null;
+
+  let numeroPosition: string | null = null;
+  const posHead = head.match(/^(\d+(?:\.\d+)*)\s+(.+)$/);
+  if (posHead) {
+    numeroPosition = posHead[1]!;
+    head = posHead[2]!.trim();
+  }
+
+  if (head.length < 4) return null;
+
+  return finalizePosteLine(line, lot, ordre, numeroPosition, `${head} ${line.slice(firstIdx)}`);
+}
+
+function finalizePosteLine(
+  line: string,
+  lot: string | null,
+  ordre: number,
+  numeroPosition: string | null,
+  body: string,
+): ParsedPoste | null {
   const amounts = extractAmounts(body);
   if (amounts.length === 0) return null;
-
   if (amounts.length === 1 && amounts[0]! > 500_000 && body.length < 40) return null;
 
   const cols = assignAmountColumns(amounts);
@@ -184,6 +278,13 @@ function parsePosteLine(line: string, lot: string | null, ordre: number): Parsed
   const { designation: des2, unite } = extractUnitFromTail(designation);
   designation = des2;
 
+  if (quantite != null && Number.isInteger(quantite)) {
+    const qtyTail = new RegExp(`\\b${quantite}\\s*$`);
+    if (qtyTail.test(designation)) {
+      designation = designation.replace(qtyTail, "").trim();
+    }
+  }
+
   if (designation.length < 3) return null;
   if (/^(total|tva|remise)/i.test(designation)) return null;
 
@@ -194,20 +295,17 @@ function parsePosteLine(line: string, lot: string | null, ordre: number): Parsed
     }
   }
 
-  if (!isPlausiblePoste(line, designation, numeroPosition, quantite, prixUnitaire, prixTotal)) {
-    return null;
-  }
-
-  return {
-    numeroPosition,
+  return buildPosteFromParts(
+    line,
     lot,
+    ordre,
+    numeroPosition,
     designation,
     unite,
     quantite,
     prixUnitaire,
     prixTotal,
-    ordre,
-  };
+  );
 }
 
 function extractFinalPrice(lines: string[]): { value: number | null; label: string | null } {
@@ -246,13 +344,18 @@ function extractFinalPrice(lines: string[]): { value: number | null; label: stri
 }
 
 export function parseDevisText(text: string): ParsedDevis {
-  const rawLines = text
-    .split(/\r?\n/)
-    .map((l) => l.replace(/\t/g, " ").replace(/\s+/g, " ").trim())
-    .filter(Boolean);
+  const rawLines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = normalizePdfLines(rawLines);
 
-  const lines = mergeMultilinePostes(rawLines);
+  let result = extractPostesFromLines(lines);
+  if (result.postes.length === 0) {
+    result = extractPostesFromLines(mergeMultilinePostes(rawLines.map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean)));
+  }
 
+  return result;
+}
+
+function extractPostesFromLines(lines: string[]): ParsedDevis {
   let currentLot: string | null = null;
   const postes: ParsedPoste[] = [];
   let ordre = 0;
@@ -308,7 +411,7 @@ function mergeMultilinePostes(lines: string[]): string[] {
       continue;
     }
 
-    const startsPosition = POSITION_RE.test(line);
+    const startsPosition = POSITION_RE.test(line) || /^(\d+\.\d+(?:\.\d+)+)$/.test(line);
 
     if (startsPosition) {
       if (pending) merged.push(pending);

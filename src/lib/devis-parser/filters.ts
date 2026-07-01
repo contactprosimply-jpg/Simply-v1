@@ -79,5 +79,16 @@ export function isPlausiblePoste(
     return false;
   }
 
+  // Ligne avec 2 montants + libellé raisonnable (PDF mal structuré)
+  if (
+    prixUnitaire != null &&
+    prixTotal != null &&
+    prixTotal > 0 &&
+    designation.length >= 5 &&
+    !/^\d+$/.test(designation)
+  ) {
+    return true;
+  }
+
   return false;
 }
