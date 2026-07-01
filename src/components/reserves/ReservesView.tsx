@@ -21,7 +21,7 @@ import type { ReserveStatut } from "@/lib/types";
 const STATUTS: { value: ReserveStatut; label: string; color: string }[] = [
   { value: "ouverte", label: "Ouverte", color: "bg-red-100 text-red-700" },
   { value: "en_cours", label: "En cours", color: "bg-amber-100 text-amber-800" },
-  { value: "levee", label: "Levée", color: "bg-teal-100 text-teal-800" },
+  { value: "levee", label: "Levée", color: "bg-orange-100 text-orange-800" },
 ];
 
 export function ReservesView() {

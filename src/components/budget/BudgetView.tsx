@@ -88,7 +88,7 @@ export function BudgetView() {
           </Card>
           <Card>
             <p className="text-sm text-gray-500">Marge</p>
-            <p className={`mt-1 text-2xl font-bold ${summary.marge >= 0 ? "text-teal-600" : "text-red-600"}`}>
+            <p className={`mt-1 text-2xl font-bold ${summary.marge >= 0 ? "text-orange-600" : "text-red-600"}`}>
               {formatCurrency(summary.marge)}
             </p>
           </Card>

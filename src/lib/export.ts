@@ -8,7 +8,7 @@ export function printDocument(title: string, bodyHtml: string) {
   <meta charset="utf-8" />
   <title>${escapeHtml(title)}</title>
   <style>
-    body { font-family: system-ui, sans-serif; padding: 2rem; color: #021246; line-height: 1.6; }
+    body { font-family: system-ui, sans-serif; padding: 2rem; color: #1c1208; line-height: 1.6; }
     h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
     .meta { color: #64748b; font-size: 0.875rem; margin-bottom: 1.5rem; }
     .content { white-space: pre-wrap; }

@@ -52,7 +52,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[17.5rem] flex-col bg-gradient-to-b from-brand via-brand to-[#010d30] text-white shadow-2xl transition-transform duration-300 ease-out sm:static sm:translate-x-0 sm:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[17.5rem] flex-col bg-gradient-to-b from-brand via-brand to-[#120a04] text-white shadow-2xl transition-transform duration-300 ease-out sm:static sm:translate-x-0 sm:shadow-none ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >

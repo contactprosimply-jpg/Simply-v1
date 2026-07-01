@@ -15,7 +15,7 @@ const accentConfig = {
     strip: "bg-accent-blue",
   },
   cyan: {
-    icon: "from-accent-cyan/25 to-accent-cyan/5 text-teal-600",
+    icon: "from-accent-cyan/25 to-accent-cyan/5 text-orange-600",
     strip: "bg-accent-cyan",
   },
   warning: {

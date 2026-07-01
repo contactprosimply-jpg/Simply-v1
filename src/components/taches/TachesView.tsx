@@ -83,7 +83,7 @@ export function TachesView() {
   const columnStyles: Record<TacheStatut, { bar: string; bg: string }> = {
     a_faire: { bar: "bg-slate-400", bg: "bg-slate-50/80" },
     en_cours: { bar: "bg-accent-blue", bg: "bg-accent-blue/5" },
-    termine: { bar: "bg-accent-cyan", bg: "bg-teal-50/80" },
+    termine: { bar: "bg-accent-cyan", bg: "bg-orange-50/80" },
   };
 
   const column = (statut: TacheStatut, label: string) => {

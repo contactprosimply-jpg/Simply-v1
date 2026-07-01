@@ -95,7 +95,7 @@ export function ChantierSelector() {
       </div>
       {selectedChantier && (
         <p className="mt-1.5 truncate text-xs text-ink-muted">
-          <span className="inline-flex items-center rounded-md bg-accent-cyan/10 px-2 py-0.5 font-medium capitalize text-teal-700">
+          <span className="inline-flex items-center rounded-md bg-accent-cyan/15 px-2 py-0.5 font-medium capitalize text-orange-800">
             {selectedChantier.statut.replace("_", " ")}
           </span>
         </p>

@@ -113,7 +113,7 @@ export function TacheCard({ tache, onEdit, onDelete, onStatutChange }: TacheCard
             <button
               type="button"
               onClick={() => onStatutChange(tache.id, "termine")}
-              className="h-10 flex-1 rounded-xl bg-gradient-to-r from-accent-cyan/20 to-teal-50 text-sm font-semibold text-teal-700 transition hover:from-accent-cyan/30"
+              className="h-10 flex-1 rounded-xl bg-gradient-to-r from-accent-cyan/20 to-orange-50 text-sm font-semibold text-orange-700 transition hover:from-accent-cyan/30"
             >
               Terminer
             </button>

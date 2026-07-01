@@ -1,19 +1,20 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand: #021246;
-  --color-brand-light: #0a2a6e;
-  --color-brand-muted: #1a3a8a;
-  --color-accent-blue: #3b7fe8;
-  --color-accent-cyan: #1ecbe1;
-  --color-surface: #f4f7fc;
-  --color-surface-dark: #e8eef8;
-  --color-ink: #0f172a;
-  --color-ink-muted: #64748b;
+  /* Palette orange Simply */
+  --color-brand: #1c1208;
+  --color-brand-light: #3d2814;
+  --color-brand-muted: #5c3a1a;
+  --color-accent-blue: #ea580c;
+  --color-accent-cyan: #f59e0b;
+  --color-surface: #faf8f5;
+  --color-surface-dark: #f0ebe3;
+  --color-ink: #1c1917;
+  --color-ink-muted: #78716c;
   --font-sans: var(--font-inter), "Segoe UI", system-ui, sans-serif;
-  --shadow-card: 0 1px 3px rgb(2 18 70 / 0.06), 0 4px 16px rgb(2 18 70 / 0.04);
-  --shadow-card-hover: 0 4px 12px rgb(2 18 70 / 0.08), 0 12px 32px rgb(59 127 232 / 0.1);
-  --shadow-glow: 0 0 0 1px rgb(59 127 232 / 0.15), 0 8px 24px rgb(59 127 232 / 0.12);
+  --shadow-card: 0 1px 3px rgb(28 18 8 / 0.06), 0 4px 16px rgb(28 18 8 / 0.04);
+  --shadow-card-hover: 0 4px 12px rgb(28 18 8 / 0.08), 0 12px 32px rgb(234 88 12 / 0.12);
+  --shadow-glow: 0 0 0 1px rgb(234 88 12 / 0.18), 0 8px 24px rgb(234 88 12 / 0.15);
 }
 
 body {
@@ -24,13 +25,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Fond app — mesh subtil */
+/* Fond app — mesh chaud orange */
 .app-mesh {
-  background-color: #f0f4fa;
+  background-color: #faf6f0;
   background-image:
-    radial-gradient(at 0% 0%, rgb(59 127 232 / 0.08) 0, transparent 50%),
-    radial-gradient(at 100% 0%, rgb(30 203 225 / 0.06) 0, transparent 45%),
-    radial-gradient(at 50% 100%, rgb(2 18 70 / 0.04) 0, transparent 50%);
+    radial-gradient(at 0% 0%, rgb(234 88 12 / 0.07) 0, transparent 50%),
+    radial-gradient(at 100% 0%, rgb(245 158 11 / 0.06) 0, transparent 45%),
+    radial-gradient(at 50% 100%, rgb(28 18 8 / 0.04) 0, transparent 50%);
 }
 
 @keyframes fade-in {
@@ -68,10 +69,9 @@ body {
 .stagger-3 { animation-delay: 0.15s; }
 .stagger-4 { animation-delay: 0.2s; }
 
-/* Cartes premium */
 .card-premium {
   border-radius: 1rem;
-  border: 1px solid rgb(232 238 248);
+  border: 1px solid rgb(240 235 227);
   background: white;
   box-shadow: var(--shadow-card);
   transition: box-shadow 0.2s ease, transform 0.2s ease;
@@ -81,16 +81,15 @@ body {
   box-shadow: var(--shadow-card-hover);
 }
 
-/* Bouton primaire gradient */
 .btn-primary-gradient {
-  background: linear-gradient(135deg, #3b7fe8 0%, #2b6fd6 50%, #1ecbe1 100%);
-  box-shadow: 0 2px 8px rgb(59 127 232 / 0.35);
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 50%, #f59e0b 100%);
+  box-shadow: 0 2px 8px rgb(234 88 12 / 0.35);
   transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 
 .btn-primary-gradient:hover {
   filter: brightness(1.05);
-  box-shadow: 0 4px 16px rgb(59 127 232 / 0.45);
+  box-shadow: 0 4px 16px rgb(234 88 12 / 0.45);
   transform: translateY(-1px);
 }
 
@@ -98,7 +97,6 @@ body {
   transform: translateY(0);
 }
 
-/* Barre de progression */
 .progress-track {
   height: 8px;
   border-radius: 9999px;
@@ -109,21 +107,20 @@ body {
 .progress-fill {
   height: 100%;
   border-radius: 9999px;
-  background: linear-gradient(90deg, #1ecbe1, #3b7fe8);
+  background: linear-gradient(90deg, #f59e0b, #ea580c);
   transition: width 0.6s ease-out;
 }
 
-/* Scrollbar discrète */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(2 18 70 / 0.15);
+  background: rgb(28 18 8 / 0.15);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(2 18 70 / 0.25);
+  background: rgb(28 18 8 / 0.25);
 }
