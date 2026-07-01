@@ -9,14 +9,19 @@ export interface Chantier {
   createdAt: string;
 }
 
+export type TacheStatut = "a_faire" | "en_cours" | "termine";
+export type TachePriorite = "basse" | "normale" | "haute" | "urgente";
+
 export interface Tache {
   id: string;
   chantierId: string;
   titre: string;
-  statut: "a_faire" | "en_cours" | "termine";
-  priorite: "basse" | "normale" | "haute" | "urgente";
+  description: string | null;
+  statut: TacheStatut;
+  priorite: TachePriorite;
   echeance: string | null;
   retard: boolean;
+  createdAt: string;
 }
 
 export interface DashboardKpis {

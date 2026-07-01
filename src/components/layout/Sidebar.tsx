@@ -19,7 +19,7 @@ import {
 
 const navItems = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard, enabled: true },
-  { href: "/taches", label: "Tâches", icon: ListTodo, enabled: false },
+  { href: "/taches", label: "Tâches", icon: ListTodo, enabled: true },
   { href: "/plans", label: "Plans", icon: Map, enabled: false },
   { href: "/planning", label: "Planning", icon: Calendar, enabled: false },
   { href: "/budget", label: "Budget", icon: Wallet, enabled: false },

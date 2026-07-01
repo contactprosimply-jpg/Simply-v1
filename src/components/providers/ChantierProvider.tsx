@@ -9,7 +9,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Chantier, ChantierStatut, Tache } from "@/lib/types";
+import { withRetardFlag } from "@/lib/taches";
+import type { Chantier, ChantierStatut, Tache, TachePriorite, TacheStatut } from "@/lib/types";
 
 const STORAGE_KEY = "simply-btp-data";
 
@@ -17,6 +18,22 @@ interface AppData {
   chantiers: Chantier[];
   taches: Tache[];
   selectedId: string | null;
+}
+
+export interface CreateTacheInput {
+  titre: string;
+  description?: string;
+  priorite?: TachePriorite;
+  echeance?: string;
+  statut?: TacheStatut;
+}
+
+export interface UpdateTacheInput {
+  titre?: string;
+  description?: string | null;
+  priorite?: TachePriorite;
+  echeance?: string | null;
+  statut?: TacheStatut;
 }
 
 interface ChantierContextValue {
@@ -27,6 +44,11 @@ interface ChantierContextValue {
   ready: boolean;
   selectChantier: (id: string) => void;
   createChantier: (nom: string, client?: string) => void;
+  createTache: (input: CreateTacheInput) => void;
+  updateTache: (id: string, input: UpdateTacheInput) => void;
+  updateTacheStatut: (id: string, statut: TacheStatut) => void;
+  deleteTache: (id: string) => void;
+  tachesForSelected: Tache[];
 }
 
 const defaultData: AppData = { chantiers: [], taches: [], selectedId: null };
@@ -38,7 +60,13 @@ function loadData(): AppData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultData;
-    return JSON.parse(raw) as AppData;
+    const parsed = JSON.parse(raw) as AppData;
+    return {
+      ...parsed,
+      taches: (parsed.taches ?? []).map((t) =>
+        withRetardFlag({ ...t, description: t.description ?? null, createdAt: t.createdAt ?? new Date().toISOString() }),
+      ),
+    };
   } catch {
     return defaultData;
   }
@@ -62,16 +90,17 @@ export function ChantierProvider({ children }: { children: ReactNode }) {
     setReady(true);
   }, []);
 
-  const persist = useCallback((next: AppData) => {
-    setData(next);
-    saveData(next);
+  const persist = useCallback((updater: (prev: AppData) => AppData) => {
+    setData((prev) => {
+      const next = updater(prev);
+      saveData(next);
+      return next;
+    });
   }, []);
 
   const selectChantier = useCallback(
-    (id: string) => {
-      persist({ ...data, selectedId: id });
-    },
-    [data, persist],
+    (id: string) => persist((prev) => ({ ...prev, selectedId: id })),
+    [persist],
   );
 
   const createChantier = useCallback(
@@ -84,18 +113,68 @@ export function ChantierProvider({ children }: { children: ReactNode }) {
         statut: "en_cours" satisfies ChantierStatut,
         createdAt: new Date().toISOString(),
       };
-      persist({
-        ...data,
-        chantiers: [chantier, ...data.chantiers],
+      persist((prev) => ({
+        ...prev,
+        chantiers: [chantier, ...prev.chantiers],
         selectedId: chantier.id,
+      }));
+    },
+    [persist],
+  );
+
+  const createTache = useCallback(
+    (input: CreateTacheInput) => {
+      persist((prev) => {
+        if (!prev.selectedId) return prev;
+        const tache = withRetardFlag({
+          id: crypto.randomUUID(),
+          chantierId: prev.selectedId,
+          titre: input.titre,
+          description: input.description ?? null,
+          statut: input.statut ?? "a_faire",
+          priorite: input.priorite ?? "normale",
+          echeance: input.echeance ?? null,
+          retard: false,
+          createdAt: new Date().toISOString(),
+        });
+        return { ...prev, taches: [tache, ...prev.taches] };
       });
     },
-    [data, persist],
+    [persist],
+  );
+
+  const updateTache = useCallback(
+    (id: string, input: UpdateTacheInput) => {
+      persist((prev) => ({
+        ...prev,
+        taches: prev.taches.map((t) => {
+          if (t.id !== id) return t;
+          const updated = { ...t, ...input };
+          return withRetardFlag(updated);
+        }),
+      }));
+    },
+    [persist],
+  );
+
+  const updateTacheStatut = useCallback(
+    (id: string, statut: TacheStatut) => updateTache(id, { statut }),
+    [updateTache],
+  );
+
+  const deleteTache = useCallback(
+    (id: string) => persist((prev) => ({ ...prev, taches: prev.taches.filter((t) => t.id !== id) })),
+    [persist],
   );
 
   const selectedChantier = useMemo(
     () => data.chantiers.find((c) => c.id === data.selectedId) ?? null,
     [data.chantiers, data.selectedId],
+  );
+
+  const tachesForSelected = useMemo(
+    () => data.taches.filter((t) => t.chantierId === data.selectedId),
+    [data.taches, data.selectedId],
   );
 
   const value = useMemo(
@@ -107,8 +186,26 @@ export function ChantierProvider({ children }: { children: ReactNode }) {
       ready,
       selectChantier,
       createChantier,
+      createTache,
+      updateTache,
+      updateTacheStatut,
+      deleteTache,
+      tachesForSelected,
     }),
-    [data, selectedChantier, ready, selectChantier, createChantier],
+    [
+      data.chantiers,
+      data.selectedId,
+      data.taches,
+      selectedChantier,
+      ready,
+      selectChantier,
+      createChantier,
+      createTache,
+      updateTache,
+      updateTacheStatut,
+      deleteTache,
+      tachesForSelected,
+    ],
   );
 
   return <ChantierContext.Provider value={value}>{children}</ChantierContext.Provider>;
