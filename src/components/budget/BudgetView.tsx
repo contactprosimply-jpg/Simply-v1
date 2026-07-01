@@ -1,8 +1,8 @@
 "use client";
 
-import { DevisImportPanel } from "@/components/budget/DevisImportPanel";
-import { Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { DevisImportPanel, type DevisImportPanelHandle } from "@/components/budget/DevisImportPanel";
+import { FileSpreadsheet, Plus } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import { useChantiers } from "@/components/providers/ChantierProvider";
 import { BtnDanger, BtnPrimary, BtnSecondary, Card, ChantierGate, EmptyState, AlertBanner, FormInput, PageHeader } from "@/components/ui/PageShell";
 import { LotSelect } from "@/components/ui/LotSelect";
@@ -16,6 +16,8 @@ const TYPES: { value: BudgetType; label: string }[] = [
 
 export function BudgetView() {
   const { selectedChantier, budgetForSelected, createBudgetLigne, updateBudgetLigne, deleteBudgetLigne, updateChantier } = useChantiers();
+  const devisImportRef = useRef<DevisImportPanelHandle>(null);
+  const [importingDevis, setImportingDevis] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [type, setType] = useState<BudgetType>("devis");
@@ -71,10 +73,22 @@ export function BudgetView() {
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <PageHeader title="Budget" subtitle={selectedChantier?.nom} />
-          <BtnPrimary onClick={() => { reset(); setShowForm(true); }}>
-            <Plus className="h-5 w-5" />
-            Ajouter une ligne
-          </BtnPrimary>
+          <div className="flex flex-wrap gap-2">
+            <BtnSecondary
+              disabled={importingDevis}
+              onClick={() => {
+                setImportingDevis(true);
+                void devisImportRef.current?.openImport().finally(() => setImportingDevis(false));
+              }}
+            >
+              <FileSpreadsheet className="h-5 w-5" />
+              {importingDevis ? "Préparation…" : "Importer devis"}
+            </BtnSecondary>
+            <BtnPrimary onClick={() => { reset(); setShowForm(true); }}>
+              <Plus className="h-5 w-5" />
+              Ajouter une ligne
+            </BtnPrimary>
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
@@ -105,6 +119,8 @@ export function BudgetView() {
 
         {selectedChantier && (
           <DevisImportPanel
+            ref={devisImportRef}
+            hideActions
             chantierNom={selectedChantier.nom}
             chantierClient={selectedChantier.client}
             chantierMontant={selectedChantier.montant}
