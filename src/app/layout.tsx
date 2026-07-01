@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Simply BTP — Gestion de chantier",
   description:
     "Application de suivi de chantier BTP, pensée pour le terrain : tablette et mobile d'abord.",
+  applicationName: "Simply BTP",
 };
 
 export const viewport: Viewport = {

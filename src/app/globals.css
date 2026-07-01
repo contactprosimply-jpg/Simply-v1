@@ -2,8 +2,31 @@
 
 @theme {
   --color-brand: #021246;
+  --color-brand-light: #0a2a6e;
+  --color-accent-blue: #3b7fe8;
+  --color-accent-cyan: #1ecbe1;
+  --color-surface: #f4f7fc;
+  --color-surface-dark: #e8eef8;
+  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
 body {
   margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.35s ease-out both;
 }
