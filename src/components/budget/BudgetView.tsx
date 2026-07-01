@@ -3,7 +3,7 @@
 import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useChantiers } from "@/components/providers/ChantierProvider";
-import { BtnDanger, BtnPrimary, Card, ChantierGate, PageHeader } from "@/components/ui/PageShell";
+import { BtnDanger, BtnPrimary, Card, ChantierGate, EmptyState, AlertBanner, FormInput, PageHeader } from "@/components/ui/PageShell";
 import { formatCurrency, formatDateFr, type BudgetType } from "@/lib/types";
 
 const TYPES: { value: BudgetType; label: string }[] = [
@@ -68,6 +68,14 @@ export function BudgetView() {
           </Card>
         </div>
 
+        {summary.pct > 90 && summary.prevu > 0 && (
+          <AlertBanner variant={summary.pct >= 100 ? "danger" : "warning"}>
+            {summary.pct >= 100
+              ? "Budget dépassé — vérifiez les dépenses et factures."
+              : `Attention : ${summary.pct} % du budget prévu est consommé.`}
+          </AlertBanner>
+        )}
+
         {showForm && (
           <Card className="space-y-3">
             <select
@@ -81,33 +89,26 @@ export function BudgetView() {
                 </option>
               ))}
             </select>
-            <input
-              placeholder="Libellé"
-              value={libelle}
-              onChange={(e) => setLibelle(e.target.value)}
-              className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
-            />
+            <FormInput placeholder="Libellé" value={libelle} onChange={(e) => setLibelle(e.target.value)} />
             <div className="grid gap-3 sm:grid-cols-2">
-              <input
+              <FormInput
                 type="number"
                 placeholder="Montant €"
                 value={montant}
                 onChange={(e) => setMontant(e.target.value)}
-                className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
               />
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
-              />
+              <FormInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <BtnPrimary onClick={handleAdd}>Enregistrer</BtnPrimary>
           </Card>
         )}
 
         {budgetForSelected.length === 0 ? (
-          <Card className="text-center text-sm text-gray-400">Aucune ligne budgétaire.</Card>
+          <EmptyState
+            message="Aucune ligne budgétaire pour ce chantier."
+            actionLabel="Ajouter une ligne"
+            onAction={() => setShowForm(true)}
+          />
         ) : (
           <ul className="space-y-2">
             {budgetForSelected.map((l) => (

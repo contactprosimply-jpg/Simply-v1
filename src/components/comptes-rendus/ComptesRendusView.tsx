@@ -3,7 +3,7 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useChantiers } from "@/components/providers/ChantierProvider";
-import { BtnDanger, BtnPrimary, Card, ChantierGate, PageHeader } from "@/components/ui/PageShell";
+import { BtnDanger, BtnPrimary, Card, ChantierGate, EmptyState, FormInput, PageHeader } from "@/components/ui/PageShell";
 import { formatDateFr } from "@/lib/types";
 
 export function ComptesRendusView() {
@@ -35,18 +35,8 @@ export function ComptesRendusView() {
 
         {showForm && (
           <Card className="space-y-3">
-            <input
-              placeholder="Titre"
-              value={titre}
-              onChange={(e) => setTitre(e.target.value)}
-              className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
-            />
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
-            />
+            <FormInput placeholder="Titre" value={titre} onChange={(e) => setTitre(e.target.value)} />
+            <FormInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             <textarea
               rows={6}
               placeholder="Contenu du compte rendu…"
@@ -59,7 +49,11 @@ export function ComptesRendusView() {
         )}
 
         {comptesRendusForSelected.length === 0 ? (
-          <Card className="text-center text-sm text-gray-400">Aucun compte rendu.</Card>
+          <EmptyState
+            message="Aucun compte rendu pour ce chantier."
+            actionLabel="Nouveau compte rendu"
+            onAction={() => setShowForm(true)}
+          />
         ) : (
           <ul className="space-y-3">
             {comptesRendusForSelected.map((cr) => (

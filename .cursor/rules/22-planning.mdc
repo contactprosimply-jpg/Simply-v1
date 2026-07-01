@@ -1,0 +1,27 @@
+---
+description: Module planning — calendrier échéances
+globs: "**/planning/**"
+alwaysApply: false
+---
+
+# Planning Simply
+
+## Source de vérité
+
+Les **tâches datées** — le planning est une vue, pas une entité dupliquée.
+
+## v1
+
+Calendrier mensuel basé sur `tache.echeance`. Couleurs par statut. Retards auto.
+
+## UX
+
+Clic événement → module tâches. Swipe mois sur tablette.
+
+## Dashboard
+
+`prochainesEcheances` dans `computeKpis` — max 5 items.
+
+## Éviter
+
+Créer des événements planning séparés des tâches sans raison métier.

@@ -3,7 +3,7 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useChantiers } from "@/components/providers/ChantierProvider";
-import { BtnDanger, BtnPrimary, Card, ChantierGate, PageHeader } from "@/components/ui/PageShell";
+import { BtnDanger, BtnPrimary, Card, ChantierGate, EmptyState, FormInput, PageHeader } from "@/components/ui/PageShell";
 import { formatDateFr } from "@/lib/types";
 
 const TYPES = ["Réception provisoire", "Réception définitive", "Levée de réserves", "Autre"];
@@ -47,12 +47,7 @@ export function CertificatsView() {
                 </option>
               ))}
             </select>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
-            />
+            <FormInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             <textarea
               rows={6}
               placeholder="Contenu du certificat…"
@@ -65,7 +60,11 @@ export function CertificatsView() {
         )}
 
         {certificatsForSelected.length === 0 ? (
-          <Card className="text-center text-sm text-gray-400">Aucun certificat.</Card>
+          <EmptyState
+            message="Aucun certificat pour ce chantier."
+            actionLabel="Nouveau certificat"
+            onAction={() => setShowForm(true)}
+          />
         ) : (
           <ul className="space-y-3">
             {certificatsForSelected.map((c) => (

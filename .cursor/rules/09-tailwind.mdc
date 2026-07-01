@@ -1,0 +1,35 @@
+---
+description: Tailwind CSS v4 — @theme, pas de config JS
+globs: "**/*.{tsx,css}"
+alwaysApply: false
+---
+
+# Tailwind v4 Simply
+
+## Config
+
+- **Pas de `tailwind.config.js`** — tokens dans `globals.css` via `@theme`
+- Import : `@import "tailwindcss"`
+
+## Classes projet
+
+Utiliser les tokens thème :
+
+- `text-brand`, `bg-brand`
+- `text-accent-blue`, `text-accent-cyan`
+- `bg-surface`, `border-surface-dark`
+
+## Patterns récurrents
+
+```tsx
+className="rounded-2xl border border-surface-dark bg-white p-5 shadow-sm"
+className="flex min-h-11 items-center gap-3 rounded-xl px-4"
+```
+
+## Responsive
+
+`sm:`, `lg:`, `xl:` — grille `grid-cols-1 sm:grid-cols-2 xl:grid-cols-4`
+
+## Éviter
+
+Styles inline, classes arbitraires répétées — extraire en composant.

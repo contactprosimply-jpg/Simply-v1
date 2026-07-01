@@ -3,7 +3,7 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useChantiers } from "@/components/providers/ChantierProvider";
-import { BtnDanger, BtnPrimary, Card, ChantierGate, PageHeader } from "@/components/ui/PageShell";
+import { BtnDanger, BtnPrimary, Card, ChantierGate, EmptyState, FormInput, PageHeader } from "@/components/ui/PageShell";
 import { formatDateFr } from "@/lib/types";
 
 export function ReunionsView() {
@@ -44,23 +44,12 @@ export function ReunionsView() {
 
         {showForm && (
           <Card className="space-y-3">
-            <input
-              placeholder="Titre de la réunion"
-              value={titre}
-              onChange={(e) => setTitre(e.target.value)}
-              className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
-            />
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
-            />
-            <input
+            <FormInput placeholder="Titre de la réunion" value={titre} onChange={(e) => setTitre(e.target.value)} />
+            <FormInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <FormInput
               placeholder="Participants (séparés par des virgules)"
               value={participants}
               onChange={(e) => setParticipants(e.target.value)}
-              className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
             />
             <textarea
               rows={6}
@@ -74,7 +63,11 @@ export function ReunionsView() {
         )}
 
         {reunionsForSelected.length === 0 ? (
-          <Card className="text-center text-sm text-gray-400">Aucun procès-verbal.</Card>
+          <EmptyState
+            message="Aucun procès-verbal pour ce chantier."
+            actionLabel="Nouveau PV"
+            onAction={() => setShowForm(true)}
+          />
         ) : (
           <ul className="space-y-3">
             {reunionsForSelected.map((r) => (

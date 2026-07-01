@@ -3,7 +3,7 @@
 import { Plus, FileText, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { useChantiers } from "@/components/providers/ChantierProvider";
-import { BtnDanger, BtnPrimary, Card, ChantierGate, PageHeader } from "@/components/ui/PageShell";
+import { BtnDanger, BtnPrimary, BtnSecondary, Card, ChantierGate, EmptyState, FormInput, PageHeader } from "@/components/ui/PageShell";
 import { formatDateFr } from "@/lib/types";
 
 export function PlansView() {
@@ -34,30 +34,22 @@ export function PlansView() {
         {showForm && (
           <Card>
             <div className="space-y-3">
-              <input
-                placeholder="Nom du plan"
-                value={nom}
-                onChange={(e) => setNom(e.target.value)}
-                className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
-              />
-              <input
-                placeholder="URL du PDF"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
-              />
+              <FormInput placeholder="Nom du plan" value={nom} onChange={(e) => setNom(e.target.value)} />
+              <FormInput placeholder="URL du PDF" value={url} onChange={(e) => setUrl(e.target.value)} />
               <div className="flex gap-2">
                 <BtnPrimary onClick={handleAdd}>Ajouter</BtnPrimary>
-                <button type="button" onClick={() => setShowForm(false)} className="text-sm text-gray-500">
-                  Annuler
-                </button>
+                <BtnSecondary onClick={() => setShowForm(false)}>Annuler</BtnSecondary>
               </div>
             </div>
           </Card>
         )}
 
         {plansForSelected.length === 0 ? (
-          <Card className="text-center text-sm text-gray-400">Aucun plan importé.</Card>
+          <EmptyState
+            message="Aucun plan importé pour ce chantier."
+            actionLabel="Importer un plan"
+            onAction={() => setShowForm(true)}
+          />
         ) : (
           <ul className="space-y-3">
             {plansForSelected.map((plan) => (

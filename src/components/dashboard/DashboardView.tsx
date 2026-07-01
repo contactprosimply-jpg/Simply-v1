@@ -11,7 +11,7 @@ import {
 import { useMemo } from "react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { useChantiers } from "@/components/providers/ChantierProvider";
-import { LoadingSpinner } from "@/components/ui/PageShell";
+import { Card, LoadingSpinner, NoChantier } from "@/components/ui/PageShell";
 import { computeKpis, formatCurrency, formatDateFr } from "@/lib/types";
 
 export function DashboardView() {
@@ -26,12 +26,7 @@ export function DashboardView() {
 
   if (!selectedId || !selectedChantier) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
-        <p className="text-lg font-medium text-brand">Aucun chantier sélectionné</p>
-        <p className="mt-2 max-w-md text-sm text-gray-500">
-          Créez votre premier chantier avec le bouton + en haut de l&apos;écran.
-        </p>
-      </div>
+      <NoChantier label="Créez votre premier chantier avec le bouton + en haut de l'écran." />
     );
   }
 
@@ -83,7 +78,7 @@ export function DashboardView() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-2xl border border-surface-dark bg-white p-5 shadow-sm">
+        <Card>
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CalendarClock className="h-5 w-5 text-accent-blue" />
@@ -113,9 +108,9 @@ export function DashboardView() {
               ))}
             </ul>
           )}
-        </section>
+        </Card>
 
-        <section className="rounded-2xl border border-surface-dark bg-white p-5 shadow-sm">
+        <Card>
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Camera className="h-5 w-5 text-accent-cyan" />
@@ -144,7 +139,7 @@ export function DashboardView() {
               ))}
             </div>
           )}
-        </section>
+        </Card>
       </div>
     </div>
   );

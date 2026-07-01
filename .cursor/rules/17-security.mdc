@@ -1,0 +1,28 @@
+---
+description: Sécurité — RLS, RGPD, uploads
+globs: "src/app/api/**,supabase/**"
+alwaysApply: false
+---
+
+# Sécurité Simply
+
+## Données chantier
+
+Photos et documents = preuves contractuelles. Horodatage, auteur, soft delete.
+
+## Futur Supabase
+
+- RLS sur toutes les tables
+- Vérification accès serveur en plus du RLS
+- Upload : validation MIME + taille max
+- Pas de secrets dans `NEXT_PUBLIC_*`
+
+## RGPD
+
+- Données hébergées UE
+- Pas de tracking invasif
+- Droit suppression utilisateur (v2)
+
+## Client v1
+
+localStorage = données locales navigateur. Avertir en doc prod : pas pour données sensibles long terme.

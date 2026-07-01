@@ -1,0 +1,34 @@
+---
+description: UI premium Simply — Linear, Notion, Procore
+globs: "**/*.{tsx,css}"
+alwaysApply: false
+---
+
+# UI Simply
+
+## Style premium sobre
+
+Inspirations : Linear, Notion, Procore, Stripe Dashboard.
+
+- Beaucoup d'espace blanc
+- Hiérarchie visuelle claire
+- Cartes élégantes (`rounded-2xl`, `border-surface-dark`)
+- Ombres discrètes (`shadow-sm`)
+- Animations fluides courtes (`animate-fade-in`)
+
+## Couleurs marque
+
+- Brand : `#021246`
+- Accents : `#3b7fe8`, `#1ecbe1`
+- Surface : `#f4f7fc`
+
+## Ne jamais
+
+- Interfaces surchargées
+- Gradients criards
+- Dark mode v1 (non prioritaire)
+- Plus d'un CTA principal par zone
+
+## Responsive
+
+Mobile-first, **optimisé tablette** 768–1024px. Sidebar → drawer hamburger sur mobile.

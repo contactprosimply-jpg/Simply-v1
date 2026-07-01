@@ -1,0 +1,30 @@
+---
+description: Performance — bundle léger, peu de re-renders
+alwaysApply: false
+---
+
+# Performance Simply
+
+## Objectifs terrain
+
+- Chargement perçu < 1s sur tablette 4G
+- Interaction < 100ms
+- Fonctionne offline partiel (v2 PWA)
+
+## Pratiques
+
+- Server Components par défaut
+- `"use client"` minimal
+- `useMemo` sur `computeKpis` et listes filtrées
+- Images : `next/image`, lazy load
+- Pas de fetch waterfall
+
+## localStorage
+
+- `loadData()` une fois au mount
+- `saveData()` debounced ou après mutation
+- Pas de re-read complet à chaque render
+
+## Bundle
+
+Éviter grosses libs client. Lucide : imports nommés uniquement.

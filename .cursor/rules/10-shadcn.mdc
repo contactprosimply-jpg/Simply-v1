@@ -1,0 +1,25 @@
+---
+description: shadcn/ui — conventions si adoption future
+globs: "src/components/ui/**"
+alwaysApply: false
+---
+
+# shadcn/ui Simply
+
+## État actuel
+
+Simply utilise des composants custom (`PageShell`, `KpiCard`). shadcn **non installé** v1.
+
+## Si adoption shadcn
+
+- Installer via CLI officiel, thème aligné marque `#021246`
+- Composants dans `components/ui/`
+- Ne pas mélanger styles shadcn et custom sans wrapper
+
+## Priorité
+
+Réutiliser l'existant avant d'ajouter shadcn. Migration progressive module par module.
+
+## Composants candidats
+
+`Button`, `Dialog`, `Sheet` (drawer mobile), `Table`, `Form` — quand formulaires complexifient.

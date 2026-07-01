@@ -1,0 +1,30 @@
+---
+description: Module budget — devis, factures, dépenses
+globs: "**/budget/**"
+alwaysApply: false
+---
+
+# Budget Simply
+
+## Types lignes
+
+`devis` (prévu), `facture`, `depense` (consommé)
+
+## UX
+
+Résumé haut : prévu / consommé / marge. Saisie rapide montant + libellé + type.
+
+Alerte visuelle si consommation > 90 %.
+
+## Calculs
+
+`computeKpis` : `budgetPrevu`, `budgetConsomme`, marge.
+`formatCurrency` pour affichage FR.
+
+## Dashboard
+
+KPI budget consommé avec % — lien vers module budget.
+
+## Futur
+
+Lien lot/poste, avenants, export comptabilité.

@@ -1,0 +1,27 @@
+---
+description: API routes et Server Actions
+globs: "src/app/api/**"
+alwaysApply: false
+---
+
+# API Simply
+
+## v1
+
+Pas de routes API — tout en client localStorage via `ChantierProvider`.
+
+## v2 conventions
+
+```
+src/app/api/chantiers/route.ts
+src/app/api/chantiers/[id]/taches/route.ts
+```
+
+- JSON typé : `{ data }` ou `{ error, code }`
+- Validation Zod entrées
+- `dynamic = 'force-dynamic'` si auth
+- Logique dans `services/`, pas dans le handler
+
+## Codes HTTP
+
+200, 201, 400, 401, 403, 404, 500 — toujours explicites.

@@ -1,0 +1,28 @@
+---
+description: IA — assistant terrain, jamais décideur
+globs: "**/ai/**,**/ia/**"
+alwaysApply: false
+---
+
+# IA Simply
+
+## Cas d'usage terrain
+
+- Résumé CR chantier depuis notes vocales/texte
+- Suggestion tâches depuis PV
+- Tag photo automatique (réserve, avancement)
+
+## Principes
+
+- IA = **assistant** — utilisateur valide toujours
+- Bouton explicite « Générer » — jamais silencieux
+- Appels **serveur uniquement** (Vercel AI SDK)
+- Fallback si IA down
+
+## Product Manager
+
+Repousser IA gadget sans gain terrain mesurable.
+
+## v1
+
+Module IA non implémenté — règles pour développement futur.

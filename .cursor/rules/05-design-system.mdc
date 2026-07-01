@@ -1,0 +1,38 @@
+---
+description: Design system Simply — tokens et composants
+globs: "**/*.{tsx,css}"
+alwaysApply: false
+---
+
+# Design System Simply
+
+## Tokens (`globals.css` @theme)
+
+```css
+--color-brand: #021246;
+--color-accent-blue: #3b7fe8;
+--color-accent-cyan: #1ecbe1;
+--color-surface: #f4f7fc;
+--color-surface-dark: #e8eef8;
+```
+
+## Composants existants (réutiliser avant de créer)
+
+| Composant | Usage |
+|-----------|-------|
+| `PageShell` | En-tête page + gate chantier |
+| `ChantierGate` | Blocage si pas de chantier |
+| `KpiCard` | KPI dashboard |
+| `LoadingSpinner` | Chargement |
+| `TacheCard` / `TacheForm` | Module tâches |
+
+## Conventions
+
+- Icônes : Lucide `h-5 w-5`
+- Espacement sections : `space-y-6`
+- Padding cartes : `p-5`
+- Typo titres : `text-2xl font-bold text-brand`
+
+## Nouveau composant
+
+Doit aller dans `components/ui/` si générique, ou `components/{module}/` si métier.

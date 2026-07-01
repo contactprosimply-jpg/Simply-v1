@@ -1,0 +1,35 @@
+---
+description: Architecture modulaire Simply
+alwaysApply: true
+---
+
+# Architecture Simply
+
+## Couches
+
+```
+src/app/           → routes (minces)
+src/components/    → UI par module + layout + providers
+src/lib/           → types, storage, utils métier
+```
+
+## Module = 1 dossier
+
+Chaque module : `page.tsx` + `components/{module}/{Module}View.tsx`
+
+Modules : `dashboard`, `taches`, `plans`, `planning`, `budget`, `photos`, `comptes-rendus`, `pointage`, `reunions`, `certificats`
+
+## Avant de créer un fichier
+
+1. Une solution existe déjà ?
+2. Un composant peut être réutilisé ?
+3. Jamais deux composants identiques
+
+## State
+
+- v1 : `ChantierProvider` + localStorage (`simply-btp-data`)
+- v2 : Supabase serveur — migration progressive
+
+## Operis bridge (futur)
+
+Simply terrain ↔ Operis bureau. Ne pas dupliquer la logique bureau dans Simply.

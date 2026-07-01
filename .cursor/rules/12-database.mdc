@@ -1,0 +1,35 @@
+---
+description: Modèle de données et relations Simply
+globs: "src/lib/**,supabase/**"
+alwaysApply: false
+---
+
+# Base de données Simply
+
+## v1 — localStorage
+
+Clé `simply-btp-data`, structure `AppData` :
+
+- `chantiers[]` — entité racine terrain
+- Toutes les entités portent `chantierId`
+- `selectedId` — chantier actif
+
+## Relations
+
+```
+Chantier 1—N Tâches, Plans, Photos, BudgetLignes, CR, Pointages, Réunions, Certificats
+```
+
+Toujours filtrer par `chantierId`. Données reliées entre elles.
+
+## v2 — Supabase
+
+- Tables snake_case pluriel
+- `created_at`, `updated_at` partout
+- FK `chantier_id`, index sur filtres fréquents
+- Migration : `supabase/migrations/`
+- Pont Operis : `supabase/migrations/future/operis_bridge.sql`
+
+## Principes
+
+Relations simples. Éviter sur-modélisation. Scalable milliers de chantiers.

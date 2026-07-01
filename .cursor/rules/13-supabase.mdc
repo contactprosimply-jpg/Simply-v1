@@ -1,0 +1,29 @@
+---
+description: Supabase — serveur uniquement, jamais browser client
+globs: "supabase/**,src/lib/supabase/**,src/app/api/**"
+alwaysApply: false
+---
+
+# Supabase Simply
+
+## Règles d'or (obligatoires)
+
+- Accès **uniquement** server-side : routes API, Server Actions, Server Components
+- **Jamais** `createBrowserClient` ni appel direct navigateur → supabase.co
+- **Jamais** Realtime sur tables volumineuses — polling propre
+- `createAdminClient()` → **nouvelle instance** à chaque appel (pas de cache module)
+- Routes auth : `export const dynamic = 'force-dynamic'`
+
+## Auth (futur)
+
+- `getUser()` / `getClaims()` pour autorisation
+- Ne pas faire confiance à `getSession()` seul
+
+## État actuel
+
+Simply v1 = **localStorage**, pas de Supabase actif. Ces règles s'appliquent dès l'intégration.
+
+## Projets
+
+- Simply : `bhzwamzujeboxintbzqr` (futur)
+- Operis : ne pas mélanger

@@ -3,7 +3,7 @@
 import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useChantiers } from "@/components/providers/ChantierProvider";
-import { BtnDanger, BtnPrimary, Card, ChantierGate, PageHeader } from "@/components/ui/PageShell";
+import { BtnDanger, BtnPrimary, Card, ChantierGate, EmptyState, FormInput, PageHeader } from "@/components/ui/PageShell";
 import { formatDateFr } from "@/lib/types";
 
 export function PointageView() {
@@ -46,34 +46,22 @@ export function PointageView() {
 
         {showForm && (
           <Card className="space-y-3">
-            <input
-              placeholder="Nom de l'ouvrier"
-              value={ouvrier}
-              onChange={(e) => setOuvrier(e.target.value)}
-              className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
-            />
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
-            />
+            <FormInput placeholder="Nom de l'ouvrier" value={ouvrier} onChange={(e) => setOuvrier(e.target.value)} />
+            <FormInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             <div className="grid grid-cols-2 gap-3">
-              <input
+              <FormInput
                 type="number"
                 step="0.5"
                 placeholder="Heures"
                 value={heures}
                 onChange={(e) => setHeures(e.target.value)}
-                className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
               />
-              <input
+              <FormInput
                 type="number"
                 step="0.25"
                 placeholder="Pauses (h)"
                 value={pauses}
                 onChange={(e) => setPauses(e.target.value)}
-                className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
               />
             </div>
             <BtnPrimary onClick={handleAdd}>Enregistrer</BtnPrimary>
@@ -81,7 +69,11 @@ export function PointageView() {
         )}
 
         {pointagesForSelected.length === 0 ? (
-          <Card className="text-center text-sm text-gray-400">Aucun pointage.</Card>
+          <EmptyState
+            message="Aucun pointage enregistré."
+            actionLabel="Saisir des heures"
+            onAction={() => setShowForm(true)}
+          />
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-surface-dark bg-white">
             <table className="w-full min-w-[480px] text-left text-sm">

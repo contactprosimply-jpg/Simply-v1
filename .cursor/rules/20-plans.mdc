@@ -1,0 +1,26 @@
+---
+description: Module plans PDF et annotations
+globs: "**/plans/**"
+alwaysApply: false
+---
+
+# Plans Simply
+
+## v1 actuel
+
+Import plan : nom + URL PDF. Liste par chantier.
+
+## v2 cible
+
+- Viewer PDF plein écran tablette
+- Annotations : pin, texte, surbrillance
+- Liaison annotation ↔ réserve ↔ tâche
+- Versioning plans (v1, v2 — ne pas écraser)
+
+## UX
+
+Pinch-zoom, pan fluide. Thumbnail grille. 1 clic → ouvrir plan.
+
+## Technique
+
+Annotations en coordonnées relatives. Export PDF annoté pour PV.

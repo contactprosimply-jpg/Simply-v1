@@ -1,0 +1,37 @@
+---
+description: React — hooks, composants <300 lignes
+globs: "**/*.tsx"
+alwaysApply: false
+---
+
+# React Simply
+
+## Stack
+
+- Composants fonctionnels + Hooks
+- `"use client"` uniquement si interactivité requise
+- Server Components par défaut (pages minces)
+
+## Règles strictes
+
+- **Aucun composant > 300 lignes**
+- **Aucune duplication** — factoriser hooks et UI
+- Logique métier dans hooks (`useChantiers`, futurs hooks domaine)
+- Props typées explicitement
+
+## Structure type
+
+```tsx
+export function BudgetView() {
+  const { budgetForSelected, addBudgetLigne } = useChantiers();
+  // ...
+}
+```
+
+## Store actuel
+
+`ChantierProvider` = state global localStorage. Ne pas fragmenter sans raison.
+
+## Anti-patterns
+
+Composants 1000 lignes, logique fetch dans JSX, props `any`, copy-paste entre modules.

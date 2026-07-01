@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { TacheCard } from "@/components/taches/TacheCard";
 import { TacheForm } from "@/components/taches/TacheForm";
 import { useChantiers } from "@/components/providers/ChantierProvider";
+import { BtnPrimary, LoadingSpinner, NoChantier, PageHeader } from "@/components/ui/PageShell";
 import { TACHE_STATUTS } from "@/lib/taches";
 import type { Tache, TacheStatut } from "@/lib/types";
 
@@ -35,21 +36,10 @@ export function TachesView() {
     return map;
   }, [tachesForSelected]);
 
-  if (!ready) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent-blue border-t-transparent" />
-      </div>
-    );
-  }
+  if (!ready) return <LoadingSpinner />;
 
   if (!selectedChantier) {
-    return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
-        <p className="text-lg font-medium text-brand">Aucun chantier sélectionné</p>
-        <p className="mt-2 text-sm text-gray-500">Créez un chantier pour gérer les tâches.</p>
-      </div>
-    );
+    return <NoChantier label="Créez un chantier pour gérer les tâches." />;
   }
 
   const openCreate = () => {
@@ -97,9 +87,13 @@ export function TachesView() {
       </div>
       <div className="flex flex-col gap-3">
         {byStatut[statut].length === 0 ? (
-          <p className="rounded-xl border border-dashed border-surface-dark py-8 text-center text-sm text-gray-400">
-            Aucune tâche
-          </p>
+          <button
+            type="button"
+            onClick={openCreate}
+            className="rounded-xl border border-dashed border-surface-dark py-8 text-center text-sm text-gray-500 hover:bg-surface"
+          >
+            Ajouter une tâche
+          </button>
         ) : (
           byStatut[statut].map((tache) => (
             <TacheCard
@@ -118,18 +112,11 @@ export function TachesView() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-brand sm:text-3xl">Tâches</h1>
-          <p className="mt-1 text-sm text-gray-500">{selectedChantier.nom}</p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="inline-flex h-11 items-center gap-2 rounded-xl bg-accent-blue px-5 text-sm font-semibold text-white shadow-sm"
-        >
+        <PageHeader title="Tâches" subtitle={selectedChantier.nom} />
+        <BtnPrimary onClick={openCreate}>
           <Plus className="h-5 w-5" />
           Nouvelle tâche
-        </button>
+        </BtnPrimary>
       </div>
 
       {/* Mobile : onglets */}

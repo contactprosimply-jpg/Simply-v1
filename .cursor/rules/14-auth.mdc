@@ -1,0 +1,27 @@
+---
+description: Authentification — futur multi-tenant
+globs: "src/**/auth/**,src/app/api/**"
+alwaysApply: false
+---
+
+# Auth Simply
+
+## v1 actuel
+
+**Pas d'auth** — accès direct app terrain (démo/MVP).
+
+## v2 prévue
+
+- Auth Supabase côté serveur uniquement
+- Session vérifiée sur chaque route API
+- Rôles : conducteur, lecture seule, admin chantier
+
+## Règles
+
+- Jamais de token service role côté client
+- `getUser()` serveur avant toute mutation
+- Redirection login via `proxy.ts` (Next 16)
+
+## Multi-tenant
+
+Filtrage `organisation_id` / `chantier_id` sur chaque requête + RLS Supabase.

@@ -1,12 +1,14 @@
 "use client";
 
 import { AlertTriangle, Calendar } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { useChantiers } from "@/components/providers/ChantierProvider";
-import { Card, ChantierGate, PageHeader } from "@/components/ui/PageShell";
+import { Card, ChantierGate, EmptyState, PageHeader } from "@/components/ui/PageShell";
 import { formatDateFr, type Tache } from "@/lib/types";
 
 export function PlanningView() {
+  const router = useRouter();
   const { selectedChantier, tachesForSelected } = useChantiers();
 
   const grouped = useMemo(() => {
@@ -31,9 +33,11 @@ export function PlanningView() {
         <PageHeader title="Planning" subtitle={selectedChantier?.nom} />
 
         {tachesForSelected.length === 0 ? (
-          <Card className="text-center text-sm text-gray-400">
-            Ajoutez des tâches avec des échéances pour alimenter le planning.
-          </Card>
+          <EmptyState
+            message="Ajoutez des tâches avec des échéances pour alimenter le planning."
+            actionLabel="Créer une tâche"
+            onAction={() => router.push("/taches")}
+          />
         ) : (
           <div className="space-y-4">
             {grouped.sorted.map(([date, taches]) => (

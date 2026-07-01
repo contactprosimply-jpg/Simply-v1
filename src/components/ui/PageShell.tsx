@@ -70,14 +70,85 @@ export function BtnPrimary({
   );
 }
 
+export function BtnSecondary({
+  children,
+  onClick,
+  type = "button",
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  type?: "button" | "submit";
+}) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      className="inline-flex h-11 items-center gap-2 rounded-xl border border-surface-dark bg-white px-5 text-sm font-medium text-brand"
+    >
+      {children}
+    </button>
+  );
+}
+
 export function BtnDanger({ children, onClick }: { children: ReactNode; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="text-sm text-red-600 hover:underline"
+      className="min-h-11 text-sm text-red-600 hover:underline"
     >
       {children}
     </button>
+  );
+}
+
+export function FormInput({
+  className = "",
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className={`h-11 w-full rounded-xl border border-surface-dark px-4 text-sm focus:border-accent-blue focus:outline-none focus:ring-2 focus:ring-accent-blue/20 ${className}`}
+    />
+  );
+}
+
+export function EmptyState({
+  message,
+  actionLabel,
+  onAction,
+}: {
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <Card className="flex flex-col items-center py-10 text-center">
+      <p className="text-sm text-gray-500">{message}</p>
+      {actionLabel && onAction && (
+        <div className="mt-4">
+          <BtnPrimary onClick={onAction}>{actionLabel}</BtnPrimary>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+export function AlertBanner({
+  children,
+  variant = "warning",
+}: {
+  children: ReactNode;
+  variant?: "warning" | "danger";
+}) {
+  const styles =
+    variant === "danger"
+      ? "border-red-200 bg-red-50 text-red-800"
+      : "border-amber-200 bg-amber-50 text-amber-900";
+  return (
+    <div className={`rounded-xl border px-4 py-3 text-sm font-medium ${styles}`}>
+      {children}
+    </div>
   );
 }

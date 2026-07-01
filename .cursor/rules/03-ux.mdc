@@ -1,0 +1,35 @@
+---
+description: UX terrain — 3 clics, tablette, lisibilité
+alwaysApply: true
+---
+
+# UX Simply
+
+## Règle des 3 clics
+
+Action principale de chaque écran en **moins de 3 clics**.
+
+## Avant d'écrire du code
+
+- Peut-on faire moins de clics ?
+- Peut-on supprimer un écran ?
+- Peut-on automatiser une étape ?
+- Peut-on rendre l'action plus rapide ?
+
+## Contexte terrain
+
+- Tablette, parfois gants, plein soleil, pluie
+- Boutons grands : `min-h-11`, zones tactiles ≥ 44px
+- Texte lisible : corps `text-sm` minimum, contrastes forts
+- Info critique en haut — pas de scroll pour l'essentiel
+
+## Patterns Simply
+
+- Liste → détail → action (max 2 clics)
+- États vides : message + CTA direct
+- Moins de boutons, moins de texte, plus de clarté
+- Skeleton loading, pas de spinner plein écran
+
+## À éviter
+
+Wizards longs, menus surchargés, jargon technique visible, formulaires > 8 champs visibles.

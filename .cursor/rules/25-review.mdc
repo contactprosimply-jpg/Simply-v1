@@ -1,0 +1,37 @@
+---
+description: Revue qualité — checklist avant livraison
+alwaysApply: false
+---
+
+# Review Simply
+
+## Checklist avant chaque livraison
+
+### UX
+- [ ] Action principale en < 3 clics
+- [ ] États vide + erreur + chargement
+- [ ] Tablette testée (touch targets)
+
+### Code
+- [ ] Composant < 300 lignes
+- [ ] Pas de duplication
+- [ ] Types stricts
+- [ ] Pas de `console.log` oublié
+
+### Performance
+- [ ] Pas de re-render inutile
+- [ ] Client boundary minimal
+
+### Sécurité
+- [ ] Pas de secret client
+- [ ] Données filtrées par chantierId
+
+### Métier
+- [ ] Vocabulaire BTP correct
+- [ ] Données liées au chantier
+
+## CEO Advisor
+
+Si la feature n'apporte pas de gain terrain → recommander de repousser.
+
+Proposer toujours la solution **professionnelle**, pas le hack rapide.

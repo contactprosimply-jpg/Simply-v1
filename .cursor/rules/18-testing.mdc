@@ -1,0 +1,27 @@
+---
+description: Tests — logique métier et parcours critiques
+globs: "**/*.{test,spec}.{ts,tsx}"
+alwaysApply: false
+---
+
+# Testing Simply
+
+## Priorités
+
+1. `computeKpis`, calculs budget, détection retards
+2. `storage.ts` load/save
+3. E2E : créer chantier → ajouter tâche → voir dashboard
+
+## Conventions
+
+- `*.test.ts` à côté du module
+- `describe` / `it` en français métier
+- Fixtures chantier type, pas données réelles
+
+## Pas de tests
+
+Rendu pixel-perfect, libs tierces, getters triviaux.
+
+## Outils suggérés
+
+Vitest (unit) + Playwright (E2E) quand CI mise en place.

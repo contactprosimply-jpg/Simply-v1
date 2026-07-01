@@ -1,0 +1,40 @@
+---
+description: Next.js 16 App Router Simply
+globs: "src/app/**"
+alwaysApply: false
+---
+
+# Next.js 16 Simply
+
+## Structure routes
+
+```
+src/app/
+  page.tsx              → redirect /dashboard
+  (app)/
+    layout.tsx          → AppShell
+    dashboard/page.tsx
+    taches/page.tsx
+    ...
+```
+
+## Règles Next 16
+
+- `params` et `searchParams` = **Promises** → `await params`
+- Middleware = `proxy.ts` (pas `middleware.ts`)
+- `next.config.ts` : redirect `/login` → `/dashboard`
+
+## Pages
+
+Pages minces — déléguer à `components/{module}/{Module}View.tsx`.
+
+```tsx
+export default function BudgetPage() {
+  return <BudgetView />;
+}
+```
+
+## Config
+
+- Turbopack dev
+- `vercel.json` : `"framework": "nextjs"`

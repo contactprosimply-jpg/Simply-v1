@@ -3,7 +3,7 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useChantiers } from "@/components/providers/ChantierProvider";
-import { BtnDanger, BtnPrimary, Card, ChantierGate, PageHeader } from "@/components/ui/PageShell";
+import { BtnDanger, BtnPrimary, BtnSecondary, Card, ChantierGate, EmptyState, FormInput, PageHeader } from "@/components/ui/PageShell";
 import { formatDateFr } from "@/lib/types";
 
 export function PhotosView() {
@@ -42,30 +42,23 @@ export function PhotosView() {
 
         {showForm && (
           <Card className="space-y-3">
-            <input
-              placeholder="URL de l'image"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
-            />
-            <input
+            <FormInput placeholder="URL de l'image" value={url} onChange={(e) => setUrl(e.target.value)} />
+            <FormInput
               placeholder="Tags (séparés par des virgules)"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
-              className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
             />
-            <input
-              placeholder="Note (optionnel)"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="h-11 w-full rounded-xl border border-surface-dark px-4 text-sm"
-            />
+            <FormInput placeholder="Note (optionnel)" value={note} onChange={(e) => setNote(e.target.value)} />
             <BtnPrimary onClick={handleAdd}>Enregistrer</BtnPrimary>
           </Card>
         )}
 
         {photosForSelected.length === 0 ? (
-          <Card className="text-center text-sm text-gray-400">Aucune photo.</Card>
+          <EmptyState
+            message="Aucune photo sur ce chantier."
+            actionLabel="Ajouter une photo"
+            onAction={() => setShowForm(true)}
+          />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {photosForSelected.map((photo) => (

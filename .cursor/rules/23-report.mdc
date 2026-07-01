@@ -1,0 +1,27 @@
+---
+description: Comptes rendus, PV réunions, rapports
+globs: "**/comptes-rendus/**,**/reunions/**,**/certificats/**"
+alwaysApply: false
+---
+
+# Rapports Simply
+
+## Comptes rendus
+
+Titre, date, contenu. Historique par chantier. Export PDF (v2).
+
+## PV réunions
+
+Participants, compte-rendu, date. Lien futur → tâches créées depuis décisions.
+
+## Certificats
+
+Types réception (partielle, totale). Contenu structuré. Numérotation (v2).
+
+## UX
+
+Création < 3 clics. Modèles préremplis (CR hebdo, réunion chantier).
+
+## Métier
+
+Documents contractuels — auteur + horodatage. Pas de suppression silencieuse.

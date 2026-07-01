@@ -1,0 +1,29 @@
+---
+description: TypeScript strict — types métier centralisés
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# TypeScript Simply
+
+## Strict
+
+- Pas de `any` sans commentaire justifié
+- Types métier dans `src/lib/types.ts`
+- Unions discriminées pour statuts (`TacheStatut`, `BudgetType`)
+
+## Entités actuelles
+
+`Chantier`, `Tache`, `Plan`, `Photo`, `BudgetLigne`, `CompteRendu`, `Pointage`, `Reunion`, `Certificat`, `AppData`
+
+## Conventions
+
+- `PascalCase` types, `camelCase` fonctions
+- Alias `@/` pour imports
+- `formatCurrency`, `formatDateFr`, `computeKpis` dans `lib/types.ts`
+
+## Nouvelle entité
+
+1. Type dans `types.ts`
+2. Storage dans `ChantierProvider` + `storage.ts`
+3. Vue dans `components/{module}/`

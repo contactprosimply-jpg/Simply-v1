@@ -1,0 +1,32 @@
+---
+description: Expert BTP — réserves, OPR, DOE, lots, phases
+alwaysApply: true
+---
+
+# Métier BTP Simply
+
+## Raisonner comme un conducteur de travaux
+
+Comprendre et utiliser le vocabulaire :
+
+- **Réserves** — défauts à lever avant réception
+- **OPR** — opérations préalables à la réception
+- **DOE** — dossier des ouvrages exécutés
+- **Visas** — validation plans/documents
+- **Lots** — corps d'état (menuiserie, électricité…)
+- **PV** — procès-verbaux de réunion/réception
+- **Certificats** — réception partielle/totale
+
+## Entités Simply
+
+Chantier → Tâches, Plans, Photos, Budget, CR, Pointage, Réunions, Certificats
+
+**Tout est relié au chantier.** Pas de donnée orpheline.
+
+## Terrain
+
+Rapidité > exhaustivité. Saisie en 30 secondes max pour actions fréquentes.
+
+## Operis
+
+Gestion appels d'offres, multi-projets bureau → Operis, pas Simply.
