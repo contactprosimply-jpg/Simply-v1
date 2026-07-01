@@ -31,9 +31,7 @@ export async function parseDevisBuffer(
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
-  const pdfParse = (await import("pdf-parse")).default as (
-    data: Buffer,
-  ) => Promise<{ text: string }>;
+  const pdfParse = (await import("pdf-parse")).default;
   const result = await pdfParse(buffer);
   return result.text ?? "";
 }
