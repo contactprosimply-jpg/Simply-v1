@@ -1,3 +1,5 @@
+import { detectCorpsMetier } from "@/lib/devis-parser/corps-metier";
+import { isJunkLine, isPlausiblePoste } from "@/lib/devis-parser/filters";
 import { extractAmounts, parseFrenchNumber } from "@/lib/devis-parser/numbers";
 import type { ParsedDevis, ParsedPoste } from "@/lib/devis-parser/types";
 
@@ -17,15 +19,21 @@ const UNITS = new Set([
   "jours",
   "unité",
   "unite",
+  "pce",
+  "pc",
 ]);
 
 const SKIP_LINE =
-  /^(page\s+\d|devis\s*n|n°\s*devis|date\s|client\s|adresse|siret|tél|tel|fax|email|www\.|@|rcs|tva\s*intracom|iban|bic)/i;
+  /^(page\s+\d|devis\s*n|n°\s*devis|date\s|client\s|adresse|siret|tél|tel|fax|email|www\.|@)/i;
 
 const TOTAL_LINE =
   /(net\s*à\s*payer|total\s*ttc|total\s*ht|montant\s*total|total\s*général|total\s*general|sous[-\s]?total|acompte|remise\s*globale)/i;
 
-const POSITION_RE = /^(\d+(?:\.\d+)+)\s+(.+)$/;
+const HEADER_LINE =
+  /^(d[eé]signation|libell[eé]|poste|n°|numero|r[eé]f|qt[eé]|quantit[eé]|unit[eé]|p\.?u\.?|prix\s*unitaire|montant|total)\b/i;
+
+/** Position : 1, 1.1, 1.1.2, 01.001… */
+const POSITION_RE = /^(\d+(?:\.\d+)*)\s+(.+)$/;
 
 function hasAmount(line: string): boolean {
   return extractAmounts(line).length > 0;
@@ -45,17 +53,33 @@ function parseUnitToken(token: string): string | null {
   return null;
 }
 
-function parsePosteLine(line: string, lot: string | null, ordre: number): ParsedPoste | null {
-  if (SKIP_LINE.test(line) || TOTAL_LINE.test(line)) return null;
+function stripAmountsFromDesignation(body: string): string {
+  return body
+    .replace(/\d{1,3}(?:\s\d{3})*,\d{2}|\d+,\d{2}/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  const posMatch = line.match(POSITION_RE);
-  const body = posMatch ? posMatch[2] : line;
-  const numeroPosition = posMatch?.[1] ?? null;
+function extractUnitFromTail(designation: string): { designation: string; unite: string | null } {
+  let unite: string | null = null;
+  const tokens = designation.split(" ");
+  if (tokens.length > 1) {
+    const last = tokens[tokens.length - 1]!;
+    const unit = parseUnitToken(last);
+    if (unit) {
+      unite = unit;
+      return { designation: tokens.slice(0, -1).join(" ").trim(), unite };
+    }
+  }
+  return { designation, unite };
+}
 
-  const amounts = extractAmounts(body);
+function assignAmountColumns(amounts: number[]): {
+  quantite: number | null;
+  prixUnitaire: number | null;
+  prixTotal: number;
+} | null {
   if (amounts.length === 0) return null;
-
-  if (amounts.length === 1 && amounts[0]! > 500_000 && body.length < 40) return null;
 
   let prixTotal = amounts[amounts.length - 1]!;
   let prixUnitaire: number | null = amounts.length >= 2 ? amounts[amounts.length - 2]! : null;
@@ -73,34 +97,105 @@ function parsePosteLine(line: string, lot: string | null, ordre: number): Parsed
     }
   }
 
-  let designation = body
-    .replace(/\d{1,3}(?:\s\d{3})*,\d{2}|\d+,\d{2}/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  let unite: string | null = null;
-  const tokens = designation.split(" ");
-  if (tokens.length > 1) {
-    const last = tokens[tokens.length - 1]!;
-    const unit = parseUnitToken(last);
-    if (unit) {
-      unite = unit;
-      designation = tokens.slice(0, -1).join(" ").trim();
-    }
-  }
-
-  if (designation.length < 3) return null;
-  if (/^(total|tva|remise)/i.test(designation)) return null;
-
   if (quantite !== null && quantite > 10_000 && prixUnitaire !== null && prixUnitaire < 100) {
     [quantite, prixUnitaire] = [prixUnitaire, quantite];
   }
+
+  return { quantite, prixUnitaire, prixTotal };
+}
+
+/** Ligne tabulaire : n° + libellé + qté + unité + PU + total */
+function tryParseStructuredRow(
+  line: string,
+  lot: string | null,
+  ordre: number,
+): ParsedPoste | null {
+  const posMatch = line.match(POSITION_RE);
+  if (!posMatch) return null;
+
+  const numeroPosition = posMatch[1]!;
+  const rest = posMatch[2]!;
+  const amounts = extractAmounts(rest);
+  if (amounts.length < 2) return null;
+
+  const cols = assignAmountColumns(amounts);
+  if (!cols) return null;
+
+  let { quantite, prixUnitaire, prixTotal } = cols;
+  let designation = stripAmountsFromDesignation(rest);
+
+  // Retire qté entière en fin de libellé (ex. "Fenêtre PVC 10")
+  if (quantite != null && Number.isInteger(quantite)) {
+    const qtyTail = new RegExp(`\\b${quantite}\\s*$`);
+    if (qtyTail.test(designation)) {
+      designation = designation.replace(qtyTail, "").trim();
+    }
+  }
+
+  const { designation: des2, unite } = extractUnitFromTail(designation);
+  designation = des2;
 
   if (quantite == null && unite?.toLowerCase() === "u" && prixUnitaire != null && prixTotal != null) {
     const ratio = prixTotal / prixUnitaire;
     if (ratio >= 1 && ratio <= 9999 && Math.abs(ratio - Math.round(ratio)) < 0.01) {
       quantite = Math.round(ratio);
     }
+  }
+
+  if (!isPlausiblePoste(line, designation, numeroPosition, quantite, prixUnitaire, prixTotal)) {
+    return null;
+  }
+
+  return {
+    numeroPosition,
+    lot,
+    designation,
+    unite,
+    quantite,
+    prixUnitaire,
+    prixTotal,
+    ordre,
+  };
+}
+
+function parsePosteLine(line: string, lot: string | null, ordre: number): ParsedPoste | null {
+  if (isJunkLine(line) || SKIP_LINE.test(line) || TOTAL_LINE.test(line) || HEADER_LINE.test(line)) {
+    return null;
+  }
+
+  const structured = tryParseStructuredRow(line, lot, ordre);
+  if (structured) return structured;
+
+  const posMatch = line.match(POSITION_RE);
+  const body = posMatch ? posMatch[2]! : line;
+  const numeroPosition = posMatch?.[1] ?? null;
+
+  const amounts = extractAmounts(body);
+  if (amounts.length === 0) return null;
+
+  if (amounts.length === 1 && amounts[0]! > 500_000 && body.length < 40) return null;
+
+  const cols = assignAmountColumns(amounts);
+  if (!cols) return null;
+
+  let { quantite, prixUnitaire, prixTotal } = cols;
+
+  let designation = stripAmountsFromDesignation(body);
+  const { designation: des2, unite } = extractUnitFromTail(designation);
+  designation = des2;
+
+  if (designation.length < 3) return null;
+  if (/^(total|tva|remise)/i.test(designation)) return null;
+
+  if (quantite == null && unite?.toLowerCase() === "u" && prixUnitaire != null && prixTotal != null) {
+    const ratio = prixTotal / prixUnitaire;
+    if (ratio >= 1 && ratio <= 9999 && Math.abs(ratio - Math.round(ratio)) < 0.01) {
+      quantite = Math.round(ratio);
+    }
+  }
+
+  if (!isPlausiblePoste(line, designation, numeroPosition, quantite, prixUnitaire, prixTotal)) {
+    return null;
   }
 
   return {
@@ -119,7 +214,7 @@ function extractFinalPrice(lines: string[]): { value: number | null; label: stri
   const candidates: { value: number; label: string; score: number }[] = [];
 
   for (const line of lines) {
-    if (!TOTAL_LINE.test(line)) continue;
+    if (!TOTAL_LINE.test(line) || isJunkLine(line)) continue;
     const amounts = extractAmounts(line);
     if (amounts.length === 0) continue;
     const value = amounts[amounts.length - 1]!;
@@ -137,6 +232,7 @@ function extractFinalPrice(lines: string[]): { value: number | null; label: stri
   if (candidates.length === 0) {
     const tail = lines.slice(-40);
     for (const line of tail) {
+      if (isJunkLine(line)) continue;
       const amounts = extractAmounts(line);
       if (amounts.length === 1 && amounts[0]! > 1000) {
         candidates.push({ value: amounts[0]!, label: line.slice(0, 80), score: 10 });
@@ -152,7 +248,7 @@ function extractFinalPrice(lines: string[]): { value: number | null; label: stri
 export function parseDevisText(text: string): ParsedDevis {
   const rawLines = text
     .split(/\r?\n/)
-    .map((l) => l.replace(/\t/g, " ").trim())
+    .map((l) => l.replace(/\t/g, " ").replace(/\s+/g, " ").trim())
     .filter(Boolean);
 
   const lines = mergeMultilinePostes(rawLines);
@@ -162,6 +258,8 @@ export function parseDevisText(text: string): ParsedDevis {
   let ordre = 0;
 
   for (const line of lines) {
+    if (isJunkLine(line) || HEADER_LINE.test(line)) continue;
+
     const lot = isLotHeader(line);
     if (lot) {
       currentLot = lot;
@@ -176,7 +274,6 @@ export function parseDevisText(text: string): ParsedDevis {
   }
 
   const { value: prixFinal, label: prixFinalLabel } = extractFinalPrice(lines);
-
   const deduped = dedupePostes(postes);
 
   return {
@@ -189,6 +286,7 @@ export function parseDevisText(text: string): ParsedDevis {
 function dedupePostes(postes: ParsedPoste[]): ParsedPoste[] {
   const seen = new Set<string>();
   return postes.filter((p) => {
+    if (isJunkLine(p.designation)) return false;
     const key = `${p.numeroPosition ?? ""}|${p.designation}|${p.prixTotal}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -202,6 +300,14 @@ function mergeMultilinePostes(lines: string[]): string[] {
   let pending: string | null = null;
 
   for (const line of lines) {
+    if (isJunkLine(line)) {
+      if (pending) {
+        merged.push(pending);
+        pending = null;
+      }
+      continue;
+    }
+
     const startsPosition = POSITION_RE.test(line);
 
     if (startsPosition) {
@@ -215,9 +321,14 @@ function mergeMultilinePostes(lines: string[]): string[] {
     }
 
     if (pending) {
+      if (isJunkLine(line) || TOTAL_LINE.test(line) || HEADER_LINE.test(line)) {
+        merged.push(pending);
+        pending = null;
+        continue;
+      }
       pending = `${pending} ${line}`;
       const amounts = extractAmounts(pending);
-      if (amounts.length >= 2 || (amounts.length >= 1 && pending.length > 60)) {
+      if (amounts.length >= 2 || (amounts.length >= 1 && pending.length > 80)) {
         merged.push(pending);
         pending = null;
       }
@@ -242,6 +353,8 @@ export function parseDevisTable(rows: string[][]): ParsedDevis {
     if (cells.length === 0) continue;
     const line = cells.join(" ");
 
+    if (isJunkLine(line)) continue;
+
     const lot = isLotHeader(line);
     if (lot) {
       currentLot = lot;
@@ -253,12 +366,22 @@ export function parseDevisTable(rows: string[][]): ParsedDevis {
 
     if (designationIdx >= 0 && nums.length >= 1) {
       const designation = cells[designationIdx]!;
-      if (TOTAL_LINE.test(designation) || SKIP_LINE.test(designation)) continue;
+      if (TOTAL_LINE.test(designation) || SKIP_LINE.test(designation) || isJunkLine(designation)) {
+        continue;
+      }
       const prixTotal = nums[nums.length - 1]!;
       const prixUnitaire = nums.length >= 2 ? nums[nums.length - 2]! : null;
       const quantite = nums.length >= 3 ? nums[nums.length - 3]! : null;
+      const numeroPosition = cells[0]?.match(/^\d+(?:\.\d+)*$/) ? cells[0]! : null;
+
+      if (
+        !isPlausiblePoste(line, designation, numeroPosition, quantite, prixUnitaire, prixTotal)
+      ) {
+        continue;
+      }
+
       postes.push({
-        numeroPosition: cells[0]?.match(/^\d+(?:\.\d+)+$/) ? cells[0]! : null,
+        numeroPosition,
         lot: currentLot,
         designation,
         unite: null,
@@ -286,3 +409,6 @@ export function parseDevisTable(rows: string[][]): ParsedDevis {
     postes: dedupePostes(postes),
   };
 }
+
+// Réexport utile pour tests / debug
+export { detectCorpsMetier, isJunkLine };
