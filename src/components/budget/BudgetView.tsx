@@ -16,7 +16,7 @@ const TYPES: { value: BudgetType; label: string }[] = [
 ];
 
 export function BudgetView() {
-  const { selectedChantier, budgetForSelected, createBudgetLigne, updateBudgetLigne, deleteBudgetLigne, updateChantier, createTachesFromDevis } = useChantiers();
+  const { selectedChantier, budgetForSelected, createBudgetLigne, updateBudgetLigne, deleteBudgetLigne, updateChantier, createTachesFromDevis, removeDevisTaches } = useChantiers();
   const devisImportRef = useRef<DevisImportPanelHandle>(null);
   const [importingDevis, setImportingDevis] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -70,6 +70,7 @@ export function BudgetView() {
 
   const handleDevisAnalyzed = (result: DevisAnalyzeResult, nomFichier: string) => {
     if (!selectedChantier) return;
+    removeDevisTaches(result.devisImportId);
     if (result.prixFinal != null) {
       updateChantier(selectedChantier.id, { montant: result.prixFinal });
       const label = `Devis — ${nomFichier}`;
@@ -83,7 +84,10 @@ export function BudgetView() {
         titre: t.titre,
         description: t.description,
         lot: t.lot,
+        quantite: t.quantite,
+        unite: t.unite,
       })),
+      result.devisImportId,
     );
   };
 

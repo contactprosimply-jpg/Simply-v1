@@ -21,6 +21,7 @@ export interface AnalyzedTache {
   lot: string | null;
   unite: string | null;
   quantite: number | null;
+  numeroPosition?: string | null;
 }
 
 export interface DevisAnalyzeResult {
@@ -28,6 +29,7 @@ export interface DevisAnalyzeResult {
   prixFinal: number | null;
   prixFinalLabel: string | null;
   postesCount: number;
+  tachesCount: number;
   taches: AnalyzedTache[];
   postes: ParsedPoste[];
 }

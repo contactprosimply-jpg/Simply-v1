@@ -51,6 +51,9 @@ export interface Tache {
   retard: boolean;
   lot: string | null;
   reserveId: string | null;
+  quantite: number | null;
+  unite: string | null;
+  devisImportId: string | null;
   createdAt: string;
 }
 

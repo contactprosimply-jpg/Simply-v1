@@ -181,7 +181,7 @@ export const DevisImportPanel = forwardRef<DevisImportPanelHandle, DevisImportPa
           if (!result) throw new Error("Réponse analyse invalide");
           setAnalyzeResult(result);
           setSuccess(
-            `${result.postesCount} postes · ${result.taches.length} tâches générées.`,
+            `${result.postesCount} postes → ${result.tachesCount} tâches (1 par unité si applicable).`,
           );
           onAnalyzed?.(result, nomFichier);
           if (cloudIdRef.current) await loadImports(cloudIdRef.current);
@@ -387,7 +387,7 @@ export const DevisImportPanel = forwardRef<DevisImportPanelHandle, DevisImportPa
                         </div>
                         <p className="flex items-center gap-1 text-sm text-gray-600">
                           <ListChecks className="h-4 w-4" />
-                          {analyzeResult.taches.length} tâches
+                          {analyzeResult.tachesCount} tâches
                         </p>
                       </div>
                       <ul className="max-h-48 space-y-1 overflow-y-auto text-sm">
@@ -429,11 +429,15 @@ export const DevisImportPanel = forwardRef<DevisImportPanelHandle, DevisImportPa
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          {item.statut === "importe" && (
+                          {(item.statut === "importe" || item.statut === "valide") && (
                             <BtnSecondary
                               disabled={analyzingId === item.id}
                               onClick={() =>
-                                void runAnalyze(item.id, item.nom_fichier ?? "devis")
+                                void runAnalyze(
+                                  item.id,
+                                  item.nom_fichier ?? "devis",
+                                  item.statut === "valide",
+                                )
                               }
                             >
                               {analyzingId === item.id ? (
@@ -441,7 +445,7 @@ export const DevisImportPanel = forwardRef<DevisImportPanelHandle, DevisImportPa
                               ) : (
                                 <Sparkles className="h-4 w-4" />
                               )}
-                              Analyser
+                              {item.statut === "valide" ? "Ré-analyser" : "Analyser"}
                             </BtnSecondary>
                           )}
                           <span

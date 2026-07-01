@@ -1,16 +1,9 @@
 import type { BudgetPosteRow, DevisImportRow, TacheRow } from "@/lib/database.types";
+import { expandPosteToTaches } from "@/lib/devis-parser/expand-taches";
 import { parseDevisBuffer } from "@/lib/devis-parser/extract-buffer";
 import type { AnalyzedTache, DevisAnalyzeResult, ParsedPoste } from "@/lib/devis-parser/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DevisImportError } from "@/services/devis-import";
-
-function toTacheDescription(poste: ParsedPoste): string | null {
-  const parts: string[] = [];
-  if (poste.numeroPosition) parts.push(`Pos. ${poste.numeroPosition}`);
-  if (poste.quantite != null && poste.unite) parts.push(`${poste.quantite} ${poste.unite}`);
-  if (poste.prixTotal != null) parts.push(`${poste.prixTotal.toLocaleString("fr-FR")} €`);
-  return parts.length ? parts.join(" · ") : null;
-}
 
 export async function analyzeDevisImport(
   importId: string,
@@ -90,21 +83,39 @@ export async function analyzeDevisImport(
     throw new DevisImportError(posteError?.message ?? "Insertion postes impossible", 500, "POSTES_INSERT_FAILED");
   }
 
-  const tacheRows = insertedPostes.map((poste: BudgetPosteRow, idx: number) => {
+  const tacheRows: {
+    chantier_id: string;
+    budget_poste_id: string;
+    owner_id: string;
+    titre: string;
+    description: string | null;
+    unite: string | null;
+    quantite: number | null;
+    quantite_faite: number;
+    statut: string;
+    priorite: string;
+    ordre: number;
+  }[] = [];
+
+  let ordre = 0;
+  insertedPostes.forEach((poste: BudgetPosteRow, idx: number) => {
     const src = parsed.postes[idx]!;
-    return {
-      chantier_id: imp.chantier_id,
-      budget_poste_id: poste.id,
-      owner_id: imp.owner_id,
-      titre: src.designation.slice(0, 500),
-      description: toTacheDescription(src),
-      unite: src.unite,
-      quantite: src.quantite,
-      quantite_faite: 0,
-      statut: "a_faire" as const,
-      priorite: "normale" as const,
-      ordre: src.ordre,
-    };
+    const expanded = expandPosteToTaches(src);
+    for (const t of expanded) {
+      tacheRows.push({
+        chantier_id: imp.chantier_id,
+        budget_poste_id: poste.id,
+        owner_id: imp.owner_id,
+        titre: t.titre,
+        description: t.description,
+        unite: t.unite,
+        quantite: t.quantite,
+        quantite_faite: 0,
+        statut: "a_faire",
+        priorite: "normale",
+        ordre: ordre++,
+      });
+    }
   });
 
   const { data: insertedTaches, error: tacheError } = await admin
@@ -123,22 +134,31 @@ export async function analyzeDevisImport(
 
   await admin.from("devis_imports").update({ statut: "valide" }).eq("id", importId);
 
-  const taches: AnalyzedTache[] = (insertedTaches ?? []).map((t: TacheRow) => ({
-    titre: t.titre,
-    description: t.description,
-    lot: insertedPostes.find((p) => p.id === t.budget_poste_id)?.lot ?? null,
-    unite: t.unite,
-    quantite: t.quantite,
-  }));
+  const taches = mapDbTachesToAnalyzed(insertedTaches ?? [], insertedPostes);
 
   return {
     devisImportId: imp.id,
     prixFinal: parsed.prixFinal,
     prixFinalLabel: parsed.prixFinalLabel,
     postesCount: insertedPostes.length,
+    tachesCount: taches.length,
     taches,
     postes: parsed.postes,
   };
+}
+
+function mapDbTachesToAnalyzed(
+  taches: TacheRow[],
+  postes: BudgetPosteRow[],
+): AnalyzedTache[] {
+  return taches.map((t) => ({
+    titre: t.titre,
+    description: t.description,
+    lot: postes.find((p) => p.id === t.budget_poste_id)?.lot ?? null,
+    unite: t.unite,
+    quantite: t.quantite,
+    numeroPosition: postes.find((p) => p.id === t.budget_poste_id)?.numero_position ?? null,
+  }));
 }
 
 async function loadExistingAnalyzeResult(
@@ -158,23 +178,16 @@ async function loadExistingAnalyzeResult(
     .in("budget_poste_id", posteIds)
     .order("ordre", { ascending: true });
 
-  const prixFinal =
-    postes?.reduce((sum, p) => sum + (p.prix_total ?? 0), 0) ??
-    null;
+  const prixFinal = postes?.reduce((sum, p) => sum + (p.prix_total ?? 0), 0) ?? null;
+  const mapped = mapDbTachesToAnalyzed(taches ?? [], postes ?? []);
 
   return {
     devisImportId: imp.id,
     prixFinal: prixFinal && prixFinal > 0 ? prixFinal : null,
     prixFinalLabel: "Total postes (déjà analysé)",
     postesCount: postes?.length ?? 0,
-    taches:
-      taches?.map((t) => ({
-        titre: t.titre,
-        description: t.description,
-        lot: postes?.find((p) => p.id === t.budget_poste_id)?.lot ?? null,
-        unite: t.unite,
-        quantite: t.quantite,
-      })) ?? [],
+    tachesCount: mapped.length,
+    taches: mapped,
     postes:
       postes?.map((p, idx) => ({
         numeroPosition: p.numero_position,

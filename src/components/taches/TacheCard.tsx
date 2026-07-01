@@ -79,6 +79,17 @@ export function TacheCard({ tache, onEdit, onDelete, onStatutChange }: TacheCard
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
+        {tache.lot && (
+          <span className="rounded-full bg-surface px-2.5 py-0.5 text-xs text-ink-muted">
+            {tache.lot}
+          </span>
+        )}
+        {tache.quantite != null && (
+          <span className="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-medium text-orange-700">
+            Qté {tache.quantite}
+            {tache.unite ? ` ${tache.unite}` : ""}
+          </span>
+        )}
         {priorite && (
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${priorite.color}`}>
             {priorite.label}

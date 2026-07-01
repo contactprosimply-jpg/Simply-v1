@@ -57,9 +57,21 @@ function parsePosteLine(line: string, lot: string | null, ordre: number): Parsed
 
   if (amounts.length === 1 && amounts[0]! > 500_000 && body.length < 40) return null;
 
-  const prixTotal = amounts[amounts.length - 1]!;
+  let prixTotal = amounts[amounts.length - 1]!;
   let prixUnitaire: number | null = amounts.length >= 2 ? amounts[amounts.length - 2]! : null;
   let quantite: number | null = amounts.length >= 3 ? amounts[amounts.length - 3]! : null;
+
+  if (amounts.length === 2) {
+    const [a, b] = amounts;
+    if (a <= 9999 && b > a && (Number.isInteger(a) || a < 100)) {
+      quantite = a;
+      prixTotal = b;
+      prixUnitaire = b / a;
+    } else {
+      prixUnitaire = a;
+      prixTotal = b;
+    }
+  }
 
   let designation = body
     .replace(/\d{1,3}(?:\s\d{3})*,\d{2}|\d+,\d{2}/g, " ")
@@ -82,6 +94,13 @@ function parsePosteLine(line: string, lot: string | null, ordre: number): Parsed
 
   if (quantite !== null && quantite > 10_000 && prixUnitaire !== null && prixUnitaire < 100) {
     [quantite, prixUnitaire] = [prixUnitaire, quantite];
+  }
+
+  if (quantite == null && unite?.toLowerCase() === "u" && prixUnitaire != null && prixTotal != null) {
+    const ratio = prixTotal / prixUnitaire;
+    if (ratio >= 1 && ratio <= 9999 && Math.abs(ratio - Math.round(ratio)) < 0.01) {
+      quantite = Math.round(ratio);
+    }
   }
 
   return {
@@ -131,10 +150,12 @@ function extractFinalPrice(lines: string[]): { value: number | null; label: stri
 }
 
 export function parseDevisText(text: string): ParsedDevis {
-  const lines = text
+  const rawLines = text
     .split(/\r?\n/)
     .map((l) => l.replace(/\t/g, " ").trim())
     .filter(Boolean);
+
+  const lines = mergeMultilinePostes(rawLines);
 
   let currentLot: string | null = null;
   const postes: ParsedPoste[] = [];
@@ -173,6 +194,41 @@ function dedupePostes(postes: ParsedPoste[]): ParsedPoste[] {
     seen.add(key);
     return true;
   });
+}
+
+/** Fusionne désignation multi-lignes + montants sur la ligne suivante (PDF courant). */
+function mergeMultilinePostes(lines: string[]): string[] {
+  const merged: string[] = [];
+  let pending: string | null = null;
+
+  for (const line of lines) {
+    const startsPosition = POSITION_RE.test(line);
+
+    if (startsPosition) {
+      if (pending) merged.push(pending);
+      pending = line;
+      if (hasAmount(line) && extractAmounts(line).length >= 2) {
+        merged.push(pending);
+        pending = null;
+      }
+      continue;
+    }
+
+    if (pending) {
+      pending = `${pending} ${line}`;
+      const amounts = extractAmounts(pending);
+      if (amounts.length >= 2 || (amounts.length >= 1 && pending.length > 60)) {
+        merged.push(pending);
+        pending = null;
+      }
+      continue;
+    }
+
+    merged.push(line);
+  }
+
+  if (pending) merged.push(pending);
+  return merged;
 }
 
 /** Parse CSV / feuille tabulaire (colonnes libellé, qté, PU, total). */

@@ -44,6 +44,9 @@ export interface CreateTacheInput {
   statut?: TacheStatut;
   lot?: string;
   reserveId?: string;
+  quantite?: number | null;
+  unite?: string | null;
+  devisImportId?: string | null;
 }
 
 export interface UpdateTacheInput {
@@ -88,8 +91,16 @@ interface AppContextValue {
   createTache: (input: CreateTacheInput) => string;
   createTachesBulk: (titres: string[]) => void;
   createTachesFromDevis: (
-    items: { titre: string; description?: string | null; lot?: string | null }[],
+    items: {
+      titre: string;
+      description?: string | null;
+      lot?: string | null;
+      quantite?: number | null;
+      unite?: string | null;
+    }[],
+    devisImportId: string,
   ) => void;
+  removeDevisTaches: (devisImportId: string) => void;
   updateTache: (id: string, input: UpdateTacheInput) => void;
   updateTacheStatut: (id: string, statut: TacheStatut) => void;
   deleteTache: (id: string) => void;
@@ -241,6 +252,9 @@ export function ChantierProvider({ children }: { children: ReactNode }) {
           echeance: input.echeance ?? null,
           lot: input.lot ?? null,
           reserveId: input.reserveId ?? null,
+          quantite: input.quantite ?? null,
+          unite: input.unite ?? null,
+          devisImportId: input.devisImportId ?? null,
           retard: false,
           createdAt: new Date().toISOString(),
         });
@@ -265,7 +279,16 @@ export function ChantierProvider({ children }: { children: ReactNode }) {
   );
 
   const createTachesFromDevis = useCallback(
-    (items: { titre: string; description?: string | null; lot?: string | null }[]) => {
+    (
+      items: {
+        titre: string;
+        description?: string | null;
+        lot?: string | null;
+        quantite?: number | null;
+        unite?: string | null;
+      }[],
+      devisImportId: string,
+    ) => {
       if (items.length === 0) return;
       persist((prev) => {
         const chantierId = requireChantierId(prev);
@@ -281,12 +304,25 @@ export function ChantierProvider({ children }: { children: ReactNode }) {
             echeance: null,
             lot: item.lot ?? null,
             reserveId: null,
+            quantite: item.quantite ?? null,
+            unite: item.unite ?? null,
+            devisImportId,
             retard: false,
             createdAt: new Date().toISOString(),
           }),
         );
         return { ...prev, taches: [...newTaches, ...prev.taches] };
       });
+    },
+    [persist],
+  );
+
+  const removeDevisTaches = useCallback(
+    (devisImportId: string) => {
+      persist((prev) => ({
+        ...prev,
+        taches: prev.taches.filter((t) => t.devisImportId !== devisImportId),
+      }));
     },
     [persist],
   );
@@ -650,6 +686,7 @@ export function ChantierProvider({ children }: { children: ReactNode }) {
       createTache,
       createTachesBulk,
       createTachesFromDevis,
+      removeDevisTaches,
       updateTache,
       updateTacheStatut,
       deleteTache,
@@ -690,6 +727,7 @@ export function ChantierProvider({ children }: { children: ReactNode }) {
       createTache,
       createTachesBulk,
       createTachesFromDevis,
+      removeDevisTaches,
       updateTache,
       updateTacheStatut,
       deleteTache,

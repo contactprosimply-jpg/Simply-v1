@@ -40,6 +40,9 @@ export function migrateAppData(raw: Partial<AppData>): AppData {
         lot: t.lot ?? null,
         reserveId: t.reserveId ?? null,
         retard: t.retard ?? false,
+        quantite: t.quantite ?? null,
+        unite: t.unite ?? null,
+        devisImportId: t.devisImportId ?? null,
       }),
     ),
     photos: base.photos.map(
