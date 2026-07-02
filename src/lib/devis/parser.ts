@@ -11,6 +11,13 @@ import type { DocumentAnalyse, GrilleDevis, PosteAnalyse, ResultatAnalyse } from
 import { parseDevisTable, parseDevisText } from "@/lib/devis-parser/parse-text";
 import type { ParsedPoste } from "@/lib/devis-parser/types";
 import { rowsToPlainText } from "@/lib/devis-parser/extract-pdf-layout";
+import { isJunkLine } from "@/lib/devis-parser/filters";
+import { extractAmounts, splitGluedAmounts } from "@/lib/devis-parser/numbers";
+import {
+  extractPosteReference,
+  formatDesignationWithRef,
+  isPosteReferenceLine,
+} from "@/lib/devis-parser/poste-references";
 
 type ColumnRole =
   | "position"
@@ -425,35 +432,103 @@ function pickBestPosteCandidates(candidates: PosteAnalyse[][]): PosteAnalyse[] {
   return best;
 }
 
+const PAGE_MARKER_RE = /^\d{1,3}\s+sur\s+\d{1,3}$/i;
+
+function needsDesignationEnrichment(designation: string): boolean {
+  return /^Poste \d+ \(HT /.test(designation) || designation.length < 12;
+}
+
+function enrichDesignationsFromPlainText(postes: PosteAnalyse[], text: string): void {
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  for (const poste of postes) {
+    if (poste.type_ligne !== "poste" || poste.prix_total == null) continue;
+    if (!needsDesignationEnrichment(poste.designation)) continue;
+
+    for (let i = 0; i < lines.length; i++) {
+      const amounts = extractAmounts(splitGluedAmounts(lines[i]!));
+      if (!amounts.some((a) => Math.abs(a - poste.prix_total!) < 0.05)) continue;
+
+      let ref: string | null = null;
+      let detail: string | null = null;
+
+      for (let j = i - 1; j >= Math.max(0, i - 30); j--) {
+        const l = lines[j]!;
+        if (PAGE_MARKER_RE.test(l)) break;
+        if (extractAmounts(splitGluedAmounts(l)).length >= 2) break;
+        if (isJunkLine(l) || /^[uU]$/.test(l) || /^\d{1,2}[,.]00$/.test(l)) continue;
+
+        const r = extractPosteReference(l);
+        if (r && !ref) ref = r;
+
+        if (
+          !detail &&
+          !isPosteReferenceLine(l) &&
+          l.length >= 10 &&
+          /[a-zàâäéèêëïîôùûüç]{5,}/i.test(l)
+        ) {
+          detail = l.slice(0, 100);
+        }
+      }
+
+      if (ref) {
+        poste.designation = formatDesignationWithRef(ref, detail);
+        poste.metier = detectMetier(poste.designation);
+      } else if (detail) {
+        poste.designation = detail;
+        poste.metier = detectMetier(detail);
+      }
+      break;
+    }
+  }
+}
+
 function enrichDesignationsFromGrille(postes: PosteAnalyse[], grille: GrilleDevis): void {
   for (const poste of postes) {
     if (poste.type_ligne !== "poste" || poste.prix_total == null) continue;
-    if (!/^Poste \d+/.test(poste.designation)) continue;
+    if (!needsDesignationEnrichment(poste.designation)) continue;
 
-    for (const row of grille) {
+    for (let ri = 0; ri < grille.length; ri++) {
+      const row = grille[ri]!;
       const rowAmounts = row
         .map((c) => parseFrenchNumber(c))
         .filter((v): v is number => v != null);
-      const matchesTotal = rowAmounts.some(
-        (a) => Math.abs(a - poste.prix_total!) < 0.05,
-      );
-      if (!matchesTotal) continue;
+      if (!rowAmounts.some((a) => Math.abs(a - poste.prix_total!) < 0.05)) continue;
 
-      const texts = row
-        .map((c) => c.trim())
-        .filter((c) => {
-          if (!c || c.length < 8) return false;
-          if (/^[uU]$/.test(c)) return false;
-          if (parseFrenchNumber(c) != null && /[,.]\d{2}/.test(c)) return false;
-          if (isJunkDesignation(c)) return false;
-          return /[a-zàâäéèêëïîôùûüç]{5,}/i.test(c);
-        })
-        .sort((a, b) => b.length - a.length);
+      let ref: string | null = null;
+      let detail: string | null = null;
 
-      const label = texts[0];
-      if (label) {
-        poste.designation = label;
-        poste.metier = detectMetier(label);
+      for (let j = ri; j >= Math.max(0, ri - 25); j--) {
+        for (const cell of grille[j]!) {
+          const c = cell.trim();
+          if (!c) continue;
+
+          const r = extractPosteReference(c);
+          if (r && !ref) ref = r;
+
+          if (
+            !detail &&
+            !isPosteReferenceLine(c) &&
+            c.length >= 10 &&
+            parseFrenchNumber(c) == null &&
+            /[a-zàâäéèêëïîôùûüç]{5,}/i.test(c) &&
+            !isJunkDesignation(c)
+          ) {
+            detail = c.slice(0, 100);
+          }
+        }
+        if (ref) break;
+      }
+
+      if (ref) {
+        poste.designation = formatDesignationWithRef(ref, detail);
+        poste.metier = detectMetier(poste.designation);
+      } else if (detail) {
+        poste.designation = detail;
+        poste.metier = detectMetier(detail);
       }
       break;
     }
@@ -547,6 +622,7 @@ export function analyserDevis(
 
   if (options?.pdfPlainText) {
     enrichDesignationsFromGrille(postes, grille);
+    enrichDesignationsFromPlainText(postes, options.pdfPlainText);
     postes = refreshPosteCoherence(postes);
   }
 

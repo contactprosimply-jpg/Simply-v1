@@ -5,6 +5,11 @@ import {
   POSITION_START_RE,
   splitTableColumns,
 } from "@/lib/devis-parser/normalize-lines";
+import {
+  extractPosteReference,
+  formatDesignationWithRef,
+  isPosteReferenceLine,
+} from "@/lib/devis-parser/poste-references";
 import { extractAmounts, parseFrenchNumber, parseIntegerToken, splitGluedAmounts } from "@/lib/devis-parser/numbers";
 import {
   isPageMarkerLine,
@@ -472,6 +477,7 @@ function defaultUnite(
 function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
   const postes: ParsedPoste[] = [];
   let pendingDesc: string[] = [];
+  let pendingRef: string | null = null;
   let pendingQty: number | null = null;
   let pendingUnit: string | null = null;
   let currentLot: string | null = null;
@@ -479,8 +485,29 @@ function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
 
   const flushPending = () => {
     pendingDesc = [];
+    pendingRef = null;
     pendingQty = null;
     pendingUnit = null;
+  };
+
+  const buildFallbackDesignation = (prixTotal: number): string => {
+    const detail = pendingDesc.find(
+      (l) => !isPosteReferenceLine(l) && l.length >= 8 && /[a-zàâäéèêëïîôùûüç]{4,}/i.test(l),
+    );
+    if (pendingRef) return formatDesignationWithRef(pendingRef, detail);
+    if (detail) return detail.slice(0, 120);
+    return `Poste ${ordre + 1} (HT ${prixTotal.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €)`;
+  };
+
+  const applyPendingRef = (poste: ParsedPoste): void => {
+    if (!pendingRef) return;
+    if (poste.designation.includes(pendingRef)) return;
+    if (/^Poste \d+ \(HT /.test(poste.designation) || poste.designation.length < 20) {
+      const detail = pendingDesc.find((l) => !isPosteReferenceLine(l) && l.length >= 8);
+      poste.designation = formatDesignationWithRef(pendingRef, detail ?? null);
+    } else {
+      poste.designation = formatDesignationWithRef(pendingRef, poste.designation);
+    }
   };
 
   const flushQtyUnit = () => {
@@ -521,6 +548,13 @@ function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
       continue;
     }
 
+    const refLine = extractPosteReference(line);
+    if (refLine) {
+      pendingRef = refLine;
+      pendingDesc = [];
+      continue;
+    }
+
     const normalized = splitGluedAmounts(line);
     const amounts = extractAmounts(normalized);
 
@@ -549,7 +583,7 @@ function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
             cols.prixUnitaire,
             cols.prixTotal,
           );
-          const fallbackDes = `Poste ${ordre + 1} (HT ${cols.prixTotal.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €)`;
+          const fallbackDes = buildFallbackDesignation(cols.prixTotal);
           poste = buildPosteFromParts(
             line,
             currentLot,
@@ -565,6 +599,7 @@ function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
       }
 
       if (poste) {
+        applyPendingRef(poste);
         if (!poste.unite && poste.prixTotal != null) {
           poste.unite = defaultUnite(
             pendingUnit ?? trailing.unit,
@@ -591,9 +626,9 @@ function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
       continue;
     }
 
-    if (line.length >= 4) {
+    if (line.length >= 3) {
       pendingDesc.push(line);
-      if (pendingDesc.length > 4) pendingDesc.shift();
+      if (pendingDesc.length > 8) pendingDesc.shift();
     }
   }
 
