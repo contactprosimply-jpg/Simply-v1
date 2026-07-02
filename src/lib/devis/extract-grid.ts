@@ -98,7 +98,6 @@ export async function extractGrilleFromBuffer(
       }
 
       let grille: GrilleDevis = [];
-      let pdfImperfect = true;
 
       try {
         grille = await extractPdfTableRows(buffer);
@@ -110,12 +109,10 @@ export async function extractGrilleFromBuffer(
 
       if (grille.length === 0 || avgCols < 2.5) {
         grille = pdfTextToGrille(text);
-        pdfImperfect = true;
-      } else if (avgCols >= 3) {
-        pdfImperfect = false;
       }
 
-      return { grille: sanitizeGrille(grille), pdfImperfect, pdfPlainText: text };
+      // PDF devis BTP : toujours texte pdf-parse en priorité (layout pdfjs souvent trompeur)
+      return { grille: sanitizeGrille(grille), pdfImperfect: true, pdfPlainText: text };
     }
     default:
       throw new DevisAnalyserError("Type de fichier non supporté.", 400, "INVALID_TYPE");

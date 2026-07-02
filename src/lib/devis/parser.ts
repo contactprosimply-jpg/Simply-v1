@@ -455,25 +455,17 @@ export function analyserDevis(
   let postes: PosteAnalyse[];
   let prixFinalLayout: number | null = null;
 
-  if (structureFromHeader && !options?.pdfImperfect) {
-    const map = buildColumnMap(grille[headerIdx]!);
-    if (map.designation == null) {
-      remarques.push("Colonne désignation non identifiée — inférence sur la colonne la plus large.");
-    }
-    postes = parseStructuredRows(grille, headerIdx, map, { structureReconnue: structure_reconnue });
-  } else {
+  if (options?.pdfPlainText) {
     const candidates: PosteAnalyse[][] = [];
     let prixCandidates: (number | null)[] = [];
 
-    if (options?.pdfPlainText) {
-      const fromText = parseFromTextEngine(options.pdfPlainText);
-      candidates.push(fromText.postes);
-      prixCandidates.push(fromText.prixFinal);
+    const fromText = parseFromTextEngine(options.pdfPlainText);
+    candidates.push(fromText.postes);
+    prixCandidates.push(fromText.prixFinal);
 
-      const fromTabText = parseFromTextEngine(rowsToPlainText(grille));
-      candidates.push(fromTabText.postes);
-      prixCandidates.push(fromTabText.prixFinal);
-    }
+    const fromTabText = parseFromTextEngine(rowsToPlainText(grille));
+    candidates.push(fromTabText.postes);
+    prixCandidates.push(fromTabText.prixFinal);
 
     const layout = parseFromLayoutEngine(grille);
     candidates.push(layout.postes);
@@ -493,6 +485,19 @@ export function analyserDevis(
     );
     postes = pickBestPosteCandidates(candidates);
     prixFinalLayout = prixCandidates[bestIdx.idx] ?? layout.prixFinal;
+  } else if (structureFromHeader && !options?.pdfImperfect) {
+    const map = buildColumnMap(grille[headerIdx]!);
+    if (map.designation == null) {
+      remarques.push("Colonne désignation non identifiée — inférence sur la colonne la plus large.");
+    }
+    postes = parseStructuredRows(grille, headerIdx, map, { structureReconnue: structure_reconnue });
+  } else {
+    const layout = parseFromLayoutEngine(grille);
+    postes = layout.postes;
+    prixFinalLayout = layout.prixFinal;
+    if (scorePosteSet(postes) < 3) {
+      postes = parseRawFallback(grille);
+    }
   }
 
   postes = postes.filter((p) => isPlausiblePoste(p));

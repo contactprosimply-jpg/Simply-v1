@@ -5,7 +5,7 @@ import {
   POSITION_START_RE,
   splitTableColumns,
 } from "@/lib/devis-parser/normalize-lines";
-import { extractAmounts, parseFrenchNumber, parseIntegerToken } from "@/lib/devis-parser/numbers";
+import { extractAmounts, parseFrenchNumber, parseIntegerToken, splitGluedAmounts } from "@/lib/devis-parser/numbers";
 import {
   isPageMarkerLine,
   isTableHeaderLine,
@@ -365,13 +365,153 @@ function extractFinalPrice(lines: string[]): { value: number | null; label: stri
   return best ? { value: best.value, label: best.label } : { value: null, label: null };
 }
 
+const PAGE_MARKER_RE = /^\d{1,3}\s+sur\s+\d{1,3}$/i;
+const COLUMN_LABEL_RE =
+  /^(montant\s*ht|p\.?\s*u\.?\s*ht|unit[eé]|qt[eé]|description|d[eé]signation|libell[eé])$/i;
+
+function textWithoutAmounts(line: string): string {
+  return line
+    .replace(/\d{1,3}(?:\s\d{3})*[,.]\d{2}|\d+[,.]\d{2}/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isVerticalNoiseLine(line: string): boolean {
+  const t = line.trim();
+  if (PAGE_MARKER_RE.test(t)) return true;
+  if (COLUMN_LABEL_RE.test(t)) return true;
+  if (/^[uU]$/.test(t)) return true;
+  if (/^\d{1,2}[,.]00$/.test(t)) return true;
+  if (/^0[,.]0+$/.test(t.replace(/\s/g, ""))) return true;
+  if (isTableHeaderLine(t)) return true;
+  return false;
+}
+
+/** Scan pdf-parse vertical lines (DEMATHIEU: libellé puis qté/U puis montants collés). */
+function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
+  const postes: ParsedPoste[] = [];
+  let pendingDesc: string[] = [];
+  let pendingQty: number | null = null;
+  let pendingUnit: string | null = null;
+  let currentLot: string | null = null;
+  let ordre = 0;
+
+  const flushPending = () => {
+    pendingDesc = [];
+    pendingQty = null;
+    pendingUnit = null;
+  };
+
+  for (const raw of rawLines) {
+    const line = raw.replace(/\s+/g, " ").trim();
+    if (!line) continue;
+
+    if (isJunkLine(line) || isVerticalNoiseLine(line)) {
+      if (extractAmounts(splitGluedAmounts(line)).length < 2) flushPending();
+      continue;
+    }
+
+    const lot = isLotHeader(line);
+    if (lot) {
+      currentLot = lot;
+      flushPending();
+      continue;
+    }
+
+    if (TOTAL_LINE.test(line) || HEADER_LINE.test(line)) {
+      flushPending();
+      continue;
+    }
+
+    const normalized = splitGluedAmounts(line);
+    const amounts = extractAmounts(normalized);
+
+    if (amounts.length >= 2) {
+      let designation = textWithoutAmounts(line);
+      if (designation.length < 4) {
+        const parts = [...pendingDesc];
+        if (pendingQty != null) parts.push(String(pendingQty));
+        if (pendingUnit) parts.push(pendingUnit);
+        designation = parts.join(" ").trim();
+      }
+      if (designation.length >= 4) {
+        const synthetic = `${designation} ${normalized}`.trim();
+        const poste = parsePosteLine(synthetic, currentLot, ordre);
+        if (poste) {
+          postes.push(poste);
+          ordre += 1;
+        }
+      } else {
+        const cols = assignAmountColumns(amounts);
+        if (cols && cols.prixTotal > 50) {
+          const fallbackDes = `Poste ${ordre + 1} (HT ${cols.prixTotal.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €)`;
+          const poste = buildPosteFromParts(
+            line,
+            currentLot,
+            ordre,
+            null,
+            fallbackDes,
+            pendingUnit,
+            cols.quantite ?? pendingQty,
+            cols.prixUnitaire,
+            cols.prixTotal,
+          );
+          if (poste) {
+            postes.push(poste);
+            ordre += 1;
+          }
+        }
+      }
+      flushPending();
+      continue;
+    }
+
+    const qi = parseIntegerToken(line);
+    if (qi != null && line === String(qi)) {
+      pendingQty = qi;
+      continue;
+    }
+
+    const unit = parseUnitToken(line);
+    if (unit && /^[uU]$|^(u|ml|m2|m²|ens|ff|forfait)$/i.test(line)) {
+      pendingUnit = unit;
+      continue;
+    }
+
+    if (line.length >= 4) {
+      pendingDesc.push(line);
+      if (pendingDesc.length > 4) pendingDesc.shift();
+    }
+  }
+
+  return postes;
+}
+
 export function parseDevisText(text: string): ParsedDevis {
   const rawLines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const lines = normalizePdfLines(rawLines);
 
+  const verticalPostes = dedupePostes(extractVerticalPdfPostes(rawLines));
+  const { value: prixFinal, label: prixFinalLabel } = extractFinalPrice(rawLines);
+
+  if (verticalPostes.length >= 3) {
+    return { postes: verticalPostes, prixFinal, prixFinalLabel };
+  }
+
+  const lines = normalizePdfLines(rawLines);
   let result = extractPostesFromLines(lines);
+
+  if (result.postes.length < verticalPostes.length) {
+    return { postes: verticalPostes, prixFinal, prixFinalLabel };
+  }
+
   if (result.postes.length === 0) {
-    result = extractPostesFromLines(mergeMultilinePostes(rawLines.map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean)));
+    result = extractPostesFromLines(
+      mergeMultilinePostes(rawLines.map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean)),
+    );
+  }
+
+  if (result.postes.length < verticalPostes.length) {
+    return { postes: verticalPostes, prixFinal, prixFinalLabel };
   }
 
   return result;
@@ -473,7 +613,7 @@ function parseLayoutRow(
   lot: string | null,
   ordre: number,
 ): ParsedPoste | null {
-  if (cells.length < 3) return null;
+  if (cells.length < 2) return null;
 
   const line = cells.join(" ");
   if (
@@ -497,11 +637,12 @@ function parseLayoutRow(
   const amountCells: { idx: number; val: number }[] = [];
 
   for (let j = tail.length - 1; j >= 0; j--) {
-    const col = tail[j]!;
-    if (!/[,.]\d{2}/.test(col)) continue;
-    const val = parseFrenchNumber(col);
-    if (val == null) continue;
-    amountCells.unshift({ idx: j, val });
+    const col = splitGluedAmounts(tail[j]!);
+    const vals = extractAmounts(col);
+    for (let k = vals.length - 1; k >= 0; k--) {
+      amountCells.unshift({ idx: j, val: vals[k]! });
+      if (amountCells.length >= 2) break;
+    }
     if (amountCells.length >= 2) break;
   }
 
