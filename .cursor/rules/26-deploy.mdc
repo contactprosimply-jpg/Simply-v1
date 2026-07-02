@@ -1,27 +1,31 @@
 ---
-description: Déploiement automatique Vercel — push main sans demander
+description: Déploiement automatique Vercel — toujours, sans jamais demander
 alwaysApply: true
 ---
 
 # Déploiement Simply
 
-## Règle utilisateur (obligatoire)
+## Règle absolue
 
-Après des changements de code livrables (features, fixes, UI), **déployer automatiquement** :
+Après tout changement de code livrable (feature, fix, refactor, UI), **déployer automatiquement** sans exception et **sans jamais demander** à l'utilisateur s'il faut commit/push/déployer.
 
-1. `git status` + `git diff` — vérifier qu'il y a bien des changements
-2. Commit avec message concis (style du repo) si des fichiers sont modifiés
-3. `git push origin main` — déclenche Vercel (https://simply-v1-tvz7.vercel.app)
+Workflow obligatoire en fin de tâche :
 
-**Ne jamais demander** « voulez-vous que je déploie ? » ou « je pousse sur main ? » — faire directement.
+1. `git status` + `git diff` — vérifier les changements
+2. Commit avec message concis (style du repo) si fichiers modifiés
+3. `git push origin main`
+4. `npx vercel --prod` (si le push seul ne suffit pas ou en complément)
 
-## Exceptions
+**Interdit** : « Voulez-vous que je déploie ? », « Je pousse sur main ? », « Souhaitez-vous que je commit ? »
+
+## Exceptions (seules)
 
 - Pas de commit vide ni de push si aucun changement
 - Pas de secrets dans le commit (.env, clés)
 - Pas de `push --force` sur main
-- Question-only / review-only sans modification → pas de deploy
+- Tâche question-only / review-only sans modification de fichiers → pas de deploy
 
-## Rappel prod
+## Prod
 
-Variables Supabase requises sur Vercel pour l'import devis (voir `docs/deployment.md`).
+- URL : https://simply-v1-tvz7.vercel.app
+- Variables Supabase requises sur Vercel (voir `docs/deployment.md`)

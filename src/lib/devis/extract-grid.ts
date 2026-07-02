@@ -1,6 +1,8 @@
 import type { DevisTypeFichier } from "@/lib/database.types";
+import { sanitizeGrille } from "@/lib/devis/filters";
 import { DevisAnalyserError } from "@/lib/devis/types";
 import type { GrilleDevis } from "@/lib/devis/types";
+import { extractPdfTableRows } from "@/lib/devis-parser/extract-pdf-layout";
 import * as XLSX from "xlsx";
 
 const PDF_MIN_TEXT_CHARS = 80;
@@ -10,6 +12,13 @@ function cellToText(value: unknown): string {
   if (value == null) return "";
   if (value instanceof Date) return value.toISOString();
   return String(value).replace(/\s+/g, " ").trim();
+}
+
+function averageColumnCount(grille: GrilleDevis): number {
+  const rows = grille.filter((r) => r.some((c) => c.trim()) && !r[0]?.startsWith("###"));
+  if (rows.length === 0) return 0;
+  const sum = rows.reduce((acc, r) => acc + r.filter((c) => c.trim()).length, 0);
+  return sum / rows.length;
 }
 
 export function extractExcelGrille(buffer: Buffer): GrilleDevis {
@@ -60,20 +69,13 @@ function isLikelyScannedPdf(text: string): boolean {
   return alpha / compact.length < PDF_MIN_ALPHA_RATIO;
 }
 
-/** PDF → grille best-effort (souvent imparfaite). */
-export function pdfTextToGrille(text: string): GrilleDevis {
-  const lines = text
+/** Fallback pdf-parse : une cellule par ligne (souvent mauvais). */
+function pdfTextToGrille(text: string): GrilleDevis {
+  return text
     .split(/\r?\n/)
     .map((l) => l.replace(/\t/g, " ").trim())
-    .filter(Boolean);
-
-  if (lines.length === 0) return [];
-
-  return lines.map((line) => {
-    if (line.includes("\t")) return line.split("\t").map((c) => c.trim());
-    const cols = line.split(/\s{2,}/).map((c) => c.trim()).filter(Boolean);
-    return cols.length > 1 ? cols : [line];
-  });
+    .filter(Boolean)
+    .map((line) => [line]);
 }
 
 export async function extractGrilleFromBuffer(
@@ -82,9 +84,9 @@ export async function extractGrilleFromBuffer(
 ): Promise<{ grille: GrilleDevis; pdfImperfect: boolean }> {
   switch (type) {
     case "xlsx":
-      return { grille: extractExcelGrille(buffer), pdfImperfect: false };
+      return { grille: sanitizeGrille(extractExcelGrille(buffer)), pdfImperfect: false };
     case "csv":
-      return { grille: extractCsvGrille(buffer), pdfImperfect: false };
+      return { grille: sanitizeGrille(extractCsvGrille(buffer)), pdfImperfect: false };
     case "pdf": {
       const text = await extractPdfPlainText(buffer);
       if (isLikelyScannedPdf(text)) {
@@ -94,9 +96,26 @@ export async function extractGrilleFromBuffer(
           "PDF_SCANNED",
         );
       }
-      const grille = pdfTextToGrille(text);
-      const pdfImperfect = grille.length > 0 && grille[0]!.length <= 2;
-      return { grille, pdfImperfect };
+
+      let grille: GrilleDevis = [];
+      let pdfImperfect = true;
+
+      try {
+        grille = await extractPdfTableRows(buffer);
+      } catch {
+        grille = [];
+      }
+
+      const avgCols = averageColumnCount(grille);
+
+      if (grille.length === 0 || avgCols < 2.5) {
+        grille = pdfTextToGrille(text);
+        pdfImperfect = true;
+      } else if (avgCols >= 3) {
+        pdfImperfect = false;
+      }
+
+      return { grille: sanitizeGrille(grille), pdfImperfect };
     }
     default:
       throw new DevisAnalyserError("Type de fichier non supporté.", 400, "INVALID_TYPE");

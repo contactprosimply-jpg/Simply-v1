@@ -46,9 +46,11 @@ export async function analyserDevisFile(input: {
     contentType: mimeForFile(validation.type, input.file),
   });
 
-  const result = analyserDevis(grille);
+  const result = analyserDevis(grille, {
+    pdfImperfect: validation.type === "pdf" && pdfImperfect,
+  });
 
-  if (validation.type === "pdf" && (!result.document.structure_reconnue || pdfImperfect)) {
+  if (validation.type === "pdf" && pdfImperfect) {
     result.document.structure_reconnue = false;
     if (!result.document.remarques.some((r) => r.includes("PDF"))) {
       result.document.remarques.push(

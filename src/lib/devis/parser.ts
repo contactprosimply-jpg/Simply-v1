@@ -1,5 +1,10 @@
 import type { BudgetPosteTypeLigne, DevisDocumentType } from "@/lib/database.types";
 import { applyCoherenceToPoste } from "@/lib/devis/coherence";
+import {
+  isJunkDesignation,
+  isPlausiblePoste,
+  sanitizeGrille,
+} from "@/lib/devis/filters";
 import { aggregateMetiers, detectMetier } from "@/lib/devis/metiers";
 import { parseFrenchNumber, parseIntegerQty } from "@/lib/devis/numbers";
 import type { DocumentAnalyse, GrilleDevis, PosteAnalyse, ResultatAnalyse } from "@/lib/devis/types";
@@ -77,19 +82,24 @@ function scoreHeaderRow(row: string[]): number {
   return score >= 3 ? score : 0;
 }
 
+function nonEmptyCellCount(row: string[]): number {
+  return row.filter((c) => c.trim()).length;
+}
+
 function findHeaderRowIndex(grille: GrilleDevis): number {
   let bestIdx = -1;
   let bestScore = 0;
-  for (let i = 0; i < grille.length; i++) {
+  for (let i = 0; i < Math.min(grille.length, 80); i++) {
     const row = grille[i]!;
     if (row[0]?.startsWith("### FEUILLE:")) continue;
+    if (nonEmptyCellCount(row) < 3) continue;
     const score = scoreHeaderRow(row);
     if (score > bestScore) {
       bestScore = score;
       bestIdx = i;
     }
   }
-  return bestIdx;
+  return bestScore >= 3 ? bestIdx : -1;
 }
 
 function isEmptyRow(row: string[]): boolean {
@@ -265,7 +275,7 @@ function parseStructuredRows(
       designation = row.find((c) => c.trim().length > 2 && parseFrenchNumber(c) == null) ?? "";
     }
     designation = designation.trim();
-    if (!designation) continue;
+    if (!designation || isJunkDesignation(designation)) continue;
 
     const unite = getCell(row, map.unite) || null;
     const amounts = inferAmountsFromRow(row, map);
@@ -276,7 +286,7 @@ function parseStructuredRows(
       amounts.prix_total,
     );
 
-    if (type_ligne === "titre_lot") {
+    if (type_ligne === "titre_lot" && !isJunkDesignation(designation)) {
       lotCourant = designation;
     }
 
@@ -314,7 +324,7 @@ function parseRawFallback(grille: GrilleDevis, startIdx = 0): PosteAnalyse[] {
     if (isEmptyRow(row) || isSheetMarker(row)) continue;
 
     const joined = row.filter(Boolean).join(" ").trim();
-    if (!joined || scoreHeaderRow(row) > 0) continue;
+    if (!joined || scoreHeaderRow(row) > 0 || isJunkDesignation(joined)) continue;
 
     let numero_position: string | null = null;
     let designation = joined;
@@ -352,7 +362,7 @@ function parseRawFallback(grille: GrilleDevis, startIdx = 0): PosteAnalyse[] {
 
 export interface AnalyserDevisOptions {
   /** PDF ou extraction imparfaite */
-  structure_reconnue_hint?: boolean;
+  pdfImperfect?: boolean;
 }
 
 /**
@@ -363,12 +373,11 @@ export function analyserDevis(
   options?: AnalyserDevisOptions,
 ): ResultatAnalyse {
   const remarques: string[] = [];
+  grille = sanitizeGrille(grille);
+
   const headerIdx = findHeaderRowIndex(grille);
   const structureFromHeader = headerIdx >= 0;
-  const structure_reconnue =
-    options?.structure_reconnue_hint === false
-      ? false
-      : structureFromHeader;
+  let structure_reconnue = structureFromHeader && !options?.pdfImperfect;
 
   if (!structure_reconnue) {
     remarques.push(
@@ -386,6 +395,18 @@ export function analyserDevis(
     postes = parseStructuredRows(grille, headerIdx, map, { structureReconnue: structure_reconnue });
   } else {
     postes = parseRawFallback(grille);
+  }
+
+  postes = postes.filter((p) => isPlausiblePoste(p));
+
+  const plausiblePostes = postes.filter((p) => p.type_ligne === "poste");
+  if (plausiblePostes.length < 3) {
+    structure_reconnue = false;
+    if (!remarques.some((r) => r.includes("Excel"))) {
+      remarques.push(
+        "Peu de postes fiables extraits — préférez le fichier Excel (.xlsx) pour ce devis.",
+      );
+    }
   }
 
   if (postes.length === 0) {
