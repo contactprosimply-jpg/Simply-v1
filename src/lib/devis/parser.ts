@@ -434,6 +434,31 @@ function refreshPosteCoherence(postes: PosteAnalyse[]): PosteAnalyse[] {
   });
 }
 
+/** PDF sans libellés REP : numérote Position 1, 2, 3… avec montant HT. */
+function assignFallbackPdfPositions(postes: PosteAnalyse[]): void {
+  let index = 0;
+  for (const p of postes) {
+    if (p.type_ligne !== "poste") continue;
+    if (!/^Poste \d+ \(HT /.test(p.designation)) continue;
+    index += 1;
+    p.numero_position = String(index);
+    const qtyPart =
+      p.quantite != null && p.unite
+        ? ` · ${p.quantite} ${p.unite}`
+        : p.quantite != null
+          ? ` · qté ${p.quantite}`
+          : "";
+    const ht =
+      p.prix_total != null
+        ? p.prix_total.toLocaleString("fr-FR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })
+        : "—";
+    p.designation = `Position ${index}${qtyPart} — HT ${ht} €`;
+  }
+}
+
 export interface AnalyserDevisOptions {
   /** PDF ou extraction imparfaite */
   pdfImperfect?: boolean;
@@ -536,8 +561,9 @@ export function analyserDevis(
         !/\bREP\b|\bREF\b|\bRÉP\b/i.test(sources) &&
         !(options.spatialHints ?? []).some((h) => h.ref)
       ) {
+        assignFallbackPdfPositions(postes);
         remarques.push(
-          "Références REP/REF absentes du texte PDF extrait — libellés peut-être dans des dessins non textuels.",
+          "PDF : montants et quantités extraits. Les noms REP (ex. REP N°04) sont dans des dessins non lisibles — postes numérotés Position 1, 2, 3… Renommage manuel possible dans Tâches.",
         );
       }
     }

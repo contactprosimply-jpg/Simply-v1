@@ -5,6 +5,40 @@ import { useEffect, useState } from "react";
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+interface AnalysePoste {
+  numero_position: string | null;
+  designation: string;
+  quantite: number | null;
+  unite: string | null;
+  prix_total: number | null;
+  type_ligne: string;
+}
+
+interface AnalyseResume {
+  posteCount: number;
+  totalTtc: number | null;
+  pdfSansRep: boolean;
+  postes: AnalysePoste[];
+  remarques: string[];
+}
+
+function buildResume(data: unknown): AnalyseResume | null {
+  if (!data || typeof data !== "object") return null;
+  const d = data as {
+    document?: { total_ttc?: number | null; remarques?: string[] };
+    postes?: AnalysePoste[];
+  };
+  const postes = (d.postes ?? []).filter((p) => p.type_ligne === "poste");
+  const remarques = d.document?.remarques ?? [];
+  return {
+    posteCount: postes.length,
+    totalTtc: d.document?.total_ttc ?? null,
+    pdfSansRep: remarques.some((r) => r.includes("Position 1, 2, 3") || r.includes("REP")),
+    postes: postes.slice(0, 8),
+    remarques,
+  };
+}
+
 export default function DevisTestPage() {
   const [chantierId, setChantierId] = useState("");
   const [chantierNom, setChantierNom] = useState("cardinet — black swan");
@@ -13,6 +47,7 @@ export default function DevisTestPage() {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [resume, setResume] = useState<AnalyseResume | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showDiagnostic, setShowDiagnostic] = useState(true);
@@ -84,6 +119,7 @@ export default function DevisTestPage() {
     setError(null);
     setSuccess(null);
     setResult(null);
+    setResume(null);
 
     try {
       const form = new FormData();
@@ -99,6 +135,7 @@ export default function DevisTestPage() {
       }
 
       setResult(JSON.stringify(json.data, null, 2));
+      setResume(buildResume(json.data));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
     } finally {
@@ -111,7 +148,7 @@ export default function DevisTestPage() {
       <div>
         <h1 className="text-2xl font-bold text-brand">Test analyse devis (jetable)</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          POST /api/devis/analyser — parseur heuristique gratuit, prévisualisation JSON sans persistance.
+          Import PDF : montants et quantités. Résumé lisible ci-dessous (le détail technique est en JSON).
         </p>
       </div>
 
@@ -211,10 +248,53 @@ export default function DevisTestPage() {
         <pre className="overflow-auto rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</pre>
       )}
 
+      {resume && (
+        <section className="space-y-3 rounded-xl border border-brand/20 bg-white p-4">
+          <h2 className="text-sm font-semibold text-brand">Résultat (lisible)</h2>
+          <p className="text-sm">
+            <strong>{resume.posteCount}</strong> postes détectés
+            {resume.totalTtc != null && (
+              <>
+                {" "}
+                · Total TTC{" "}
+                <strong>{resume.totalTtc.toLocaleString("fr-FR")} €</strong>
+              </>
+            )}
+          </p>
+          {resume.pdfSansRep && (
+            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+              Les noms <strong>REP N°04</strong> etc. ne sont pas lisibles dans ce PDF (dessins).
+              Les postes sont numérotés <strong>Position 1, 2, 3…</strong> avec les bons montants.
+              Tu peux renommer les tâches plus tard dans l&apos;onglet <strong>Tâches</strong>.
+            </p>
+          )}
+          <ul className="space-y-1 text-sm">
+            {resume.postes.map((p) => (
+              <li key={p.numero_position ?? p.designation} className="border-b border-surface py-1">
+                <span className="font-medium">{p.designation}</span>
+                {p.quantite != null && p.unite && (
+                  <span className="text-ink-muted"> · {p.quantite} {p.unite}</span>
+                )}
+              </li>
+            ))}
+            {resume.posteCount > 8 && (
+              <li className="text-xs text-ink-muted">… et {resume.posteCount - 8} autres postes</li>
+            )}
+          </ul>
+          <p className="text-xs text-ink-muted">
+            Pour utiliser sur un chantier : importe le même PDF dans <a href="/budget" className="underline">Budget</a> puis
+            clique Analyser.
+          </p>
+        </section>
+      )}
+
       {result && (
-        <pre className="max-h-[70vh] overflow-auto rounded-lg bg-surface p-4 text-xs text-brand">
-          {result}
-        </pre>
+        <details className="rounded-lg border border-surface-dark bg-surface">
+          <summary className="cursor-pointer px-4 py-2 text-xs font-medium text-ink-muted">
+            Détail technique (JSON)
+          </summary>
+          <pre className="max-h-[50vh] overflow-auto p-4 text-xs text-brand">{result}</pre>
+        </details>
       )}
 
       <section className="rounded-xl border border-dashed border-surface-dark p-4 text-sm text-ink-muted">
