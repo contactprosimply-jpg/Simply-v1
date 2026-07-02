@@ -7,6 +7,7 @@ import { validateDevisFile } from "@/lib/devis-upload";
 
 export interface DevisAnalysePreview extends ResultatAnalyse {
   storage_path: string;
+  extraction_diagnostic?: import("@/lib/devis-parser/extraction-diagnostic").PdfExtractionDiagnostic;
 }
 
 function mimeForFile(type: string, file: File): string {
@@ -26,6 +27,7 @@ function mimeForFile(type: string, file: File): string {
 export async function analyserDevisFile(input: {
   chantierId: string;
   file: File;
+  includeDiagnostic?: boolean;
 }): Promise<DevisAnalysePreview> {
   const validation = validateDevisFile(input.file);
   if (!validation.ok) {
@@ -33,10 +35,8 @@ export async function analyserDevisFile(input: {
   }
 
   const buffer = Buffer.from(await input.file.arrayBuffer());
-  const { grille, pdfImperfect, pdfPlainText, spatialHints } = await extractGrilleFromBuffer(
-    buffer,
-    validation.type,
-  );
+  const { grille, pdfImperfect, pdfPlainText, spatialHints, extractionDiagnostic } =
+    await extractGrilleFromBuffer(buffer, validation.type);
 
   if (grille.length === 0) {
     throw new DevisAnalyserError("Aucun contenu extractible dans le fichier.", 422, "EMPTY_CONTENT");
@@ -67,5 +67,8 @@ export async function analyserDevisFile(input: {
   return {
     ...result,
     storage_path,
+    ...(input.includeDiagnostic && extractionDiagnostic
+      ? { extraction_diagnostic: extractionDiagnostic }
+      : {}),
   };
 }

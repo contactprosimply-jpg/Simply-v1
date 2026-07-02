@@ -18,6 +18,7 @@ export async function POST(request: Request) {
 
   const file = formData.get("file");
   const chantierId = formData.get("chantier_id") ?? formData.get("chantierId");
+  const includeDiagnostic = formData.get("debug") === "1" || formData.get("diagnostic") === "1";
 
   if (!(file instanceof File)) {
     return apiError('Champ "file" requis (fichier multipart).', "VALIDATION_ERROR", 400);
@@ -32,12 +33,16 @@ export async function POST(request: Request) {
     const preview = await analyserDevisFile({
       chantierId: chantierId.trim(),
       file,
+      includeDiagnostic,
     });
 
     return apiOk({
       document: preview.document,
       postes: preview.postes,
       storage_path: preview.storage_path,
+      ...(preview.extraction_diagnostic
+        ? { extraction_diagnostic: preview.extraction_diagnostic }
+        : {}),
     });
   } catch (e) {
     if (e instanceof DevisAnalyserError) {

@@ -15,6 +15,7 @@ export default function DevisTestPage() {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showDiagnostic, setShowDiagnostic] = useState(true);
   const [supabaseOk, setSupabaseOk] = useState<boolean | null>(null);
   const [missingEnv, setMissingEnv] = useState<string[]>([]);
 
@@ -88,6 +89,7 @@ export default function DevisTestPage() {
       const form = new FormData();
       form.append("file", file);
       form.append("chantier_id", chantierId.trim());
+      if (showDiagnostic) form.append("debug", "1");
 
       const res = await fetch("/api/devis/analyser", { method: "POST", body: form });
       const json = (await res.json()) as { data?: unknown; error?: string; code?: string };
@@ -183,6 +185,14 @@ export default function DevisTestPage() {
             className="w-full text-sm"
             required
           />
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={showDiagnostic}
+            onChange={(e) => setShowDiagnostic(e.target.checked)}
+          />
+          Diagnostic extraction PDF (REP détecté dans le texte ?)
         </label>
         <button
           type="submit"

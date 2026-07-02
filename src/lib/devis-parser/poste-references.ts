@@ -41,6 +41,23 @@ export function extractPosteReference(line: string): string | null {
 }
 
 /** "REP" sur une ligne + "N°04" sur la suivante (pdf-parse / pdfjs). */
+export function looseExtractRep(text: string): string | null {
+  const t = normalizeExtractedText(text);
+  if (!t) return null;
+  const direct = extractPosteReference(t);
+  if (direct) return direct;
+  const patterns = [
+    /\bR[ÉE]P\b\s*(?:N[°º\u00B0\u00BA]?|No\.?|#)?\s*0*(\d{1,4})\b/i,
+    /\bR[ÉE]P\b\s*[-–.:]\s*0*(\d{1,4})\b/i,
+  ];
+  for (const re of patterns) {
+    const m = t.match(re);
+    if (m?.[1]) return `REP N°${m[1]}`;
+  }
+  return null;
+}
+
+/** "REP" sur une ligne + "N°04" sur la suivante (pdf-parse / pdfjs). */
 export function mergeSplitReferenceLines(lines: string[]): string[] {
   const out: string[] = [];
   for (let i = 0; i < lines.length; i++) {

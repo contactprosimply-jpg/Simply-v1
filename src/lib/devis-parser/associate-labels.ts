@@ -8,6 +8,7 @@ import {
   extractRefNumber,
   formatDesignationWithRef,
   isPosteReferenceLine,
+  looseExtractRep,
   mergeSplitReferenceLines,
   normalizeExtractedText,
 } from "@/lib/devis-parser/poste-references";
@@ -55,14 +56,14 @@ function findRefNearLine(
   rowIdx: number,
 ): { ref: string | null; detail: string | null } {
   const same = normalizeExtractedText(lines[rowIdx] ?? "");
-  const sameRef = extractPosteReference(same);
+  const sameRef = looseExtractRep(same) ?? extractPosteReference(same);
   if (sameRef) {
     return { ref: sameRef, detail: detailFromCell(same, sameRef) };
   }
 
   for (let j = rowIdx - 1; j >= Math.max(0, rowIdx - LOOKBACK); j--) {
     const line = normalizeExtractedText(lines[j] ?? "");
-    const ref = extractPosteReference(line);
+    const ref = looseExtractRep(line) ?? extractPosteReference(line);
     if (ref) {
       return {
         ref,
@@ -73,7 +74,7 @@ function findRefNearLine(
 
   for (let j = rowIdx + 1; j <= Math.min(lines.length - 1, rowIdx + LOOKFORWARD); j++) {
     const line = normalizeExtractedText(lines[j] ?? "");
-    const ref = extractPosteReference(line);
+    const ref = looseExtractRep(line) ?? extractPosteReference(line);
     if (ref) {
       return {
         ref,
@@ -153,18 +154,30 @@ function enrichFromLineStream(postes: PosteAnalyse[], lines: string[]): void {
 
 function applySpatialPosteHints(postes: PosteAnalyse[], hints: SpatialPosteHint[]): void {
   const used = new Set<number>();
+  const ordered = [...hints].sort((a, b) => {
+    if (a.ref && !b.ref) return -1;
+    if (!a.ref && b.ref) return 1;
+    return 0;
+  });
 
-  for (const hint of hints) {
+  for (const hint of ordered) {
+    if (!hint.ref) continue;
+
     const poste = findPosteForAmount(postes, hint.amount, used);
     if (!poste) continue;
 
-    if (hint.ref) {
-      applyRefToPoste(poste, hint.ref, hint.detail);
-    } else if (hint.detail && needsDesignationEnrichment(poste.designation)) {
-      poste.designation = hint.detail;
-      poste.metier = detectMetier(hint.detail);
-    }
+    applyRefToPoste(poste, hint.ref, hint.detail);
+    used.add(poste.ordre);
+  }
 
+  for (const hint of ordered) {
+    if (hint.ref || !hint.detail || !isDetailCandidate(hint.detail)) continue;
+
+    const poste = findPosteForAmount(postes, hint.amount, used);
+    if (!poste) continue;
+
+    poste.designation = hint.detail;
+    poste.metier = detectMetier(hint.detail);
     used.add(poste.ordre);
   }
 }

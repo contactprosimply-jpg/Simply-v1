@@ -3,10 +3,12 @@ import { sanitizeGrille } from "@/lib/devis/filters";
 import { DevisAnalyserError } from "@/lib/devis/types";
 import type { GrilleDevis } from "@/lib/devis/types";
 import {
-  extractPdfSpatialPosteHints,
-  extractPdfTableRows,
+  buildSpatialPosteHints,
+  extractPdfTableRowsFromItems,
+  extractPdfTextItems,
   type SpatialPosteHint,
 } from "@/lib/devis-parser/extract-pdf-layout";
+import { buildPdfExtractionDiagnostic, type PdfExtractionDiagnostic } from "@/lib/devis-parser/extraction-diagnostic";
 import * as XLSX from "xlsx";
 
 const PDF_MIN_TEXT_CHARS = 80;
@@ -90,6 +92,7 @@ export async function extractGrilleFromBuffer(
   pdfImperfect: boolean;
   pdfPlainText?: string;
   spatialHints?: SpatialPosteHint[];
+  extractionDiagnostic?: PdfExtractionDiagnostic;
 }> {
   switch (type) {
     case "xlsx":
@@ -108,12 +111,13 @@ export async function extractGrilleFromBuffer(
 
       let grille: GrilleDevis = [];
       let spatialHints: SpatialPosteHint[] = [];
+      let extractionDiagnostic: PdfExtractionDiagnostic | undefined;
 
       try {
-        [grille, spatialHints] = await Promise.all([
-          extractPdfTableRows(buffer),
-          extractPdfSpatialPosteHints(buffer),
-        ]);
+        const textItems = await extractPdfTextItems(buffer);
+        spatialHints = buildSpatialPosteHints(textItems);
+        grille = extractPdfTableRowsFromItems(textItems);
+        extractionDiagnostic = buildPdfExtractionDiagnostic(textItems, spatialHints);
       } catch {
         grille = [];
         spatialHints = [];
@@ -131,6 +135,7 @@ export async function extractGrilleFromBuffer(
         pdfImperfect: true,
         pdfPlainText: text,
         spatialHints,
+        extractionDiagnostic,
       };
     }
     default:

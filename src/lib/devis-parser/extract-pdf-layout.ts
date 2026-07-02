@@ -1,6 +1,7 @@
 import { extractAmounts, splitGluedAmounts } from "@/lib/devis-parser/numbers";
 import {
   extractPosteReference,
+  looseExtractRep,
   mergeSplitReferenceLines,
   normalizeExtractedText,
 } from "@/lib/devis-parser/poste-references";
@@ -20,7 +21,8 @@ export interface SpatialPosteHint {
 
 const Y_TOLERANCE = 5;
 const X_GAP = 12;
-const DESC_ABOVE_PTS = 280;
+const DESC_ABOVE_PTS = 320;
+const DESC_BELOW_PTS = 80;
 
 function estimateEndX(item: TextItem): number {
   return item.x + Math.max(item.text.length * 4.5, 10);
@@ -66,7 +68,7 @@ function refAndDetailFromDescription(raw: string): { ref: string | null; detail:
   const text = normalizeExtractedText(mergeSplitReferenceLines([raw]).join(" "));
   if (!text) return { ref: null, detail: null };
 
-  const ref = extractPosteReference(text);
+  const ref = looseExtractRep(text) ?? extractPosteReference(text);
   if (ref) {
     let detail: string | null = null;
     const idx = text.indexOf(ref);
@@ -135,10 +137,14 @@ export function buildSpatialPosteHints(items: TextItem[]): SpatialPosteHint[] {
 
   if (amountItems.length === 0) return [];
 
+  const pageMaxX = new Map<number, number>();
+  for (const it of items) {
+    pageMaxX.set(it.page, Math.max(pageMaxX.get(it.page) ?? 0, it.x));
+  }
+
   const amountXs = amountItems.map((a) => a.it.x).sort((a, b) => a - b);
   const pivotX = amountXs[Math.floor(amountXs.length / 2)] ?? amountXs[0]!;
   const rightAmounts = amountItems.filter((a) => a.it.x >= pivotX - 30);
-  const descMaxX = Math.min(...rightAmounts.map((a) => a.it.x)) - 25;
 
   const hints: SpatialPosteHint[] = [];
   const seen = new Set<string>();
@@ -152,26 +158,36 @@ export function buildSpatialPosteHints(items: TextItem[]): SpatialPosteHint[] {
     if (seen.has(key)) continue;
     seen.add(key);
 
+    const pageWidth = pageMaxX.get(it.page) ?? it.x;
+    const descMaxX = Math.min(
+      Math.min(...rightAmounts.filter((a) => a.it.page === it.page).map((a) => a.it.x)) - 20,
+      pageWidth * 0.62,
+    );
+
     const descItems = items.filter(
       (d) =>
         d.page === it.page &&
         d.x < descMaxX &&
-        d.y >= it.y - Y_TOLERANCE &&
-        d.y <= it.y + DESC_ABOVE_PTS,
+        d.y >= it.y - DESC_ABOVE_PTS &&
+        d.y <= it.y + DESC_BELOW_PTS,
     );
 
     descItems.sort((a, b) => b.y - a.y || a.x - b.x);
     const descText = descItems.map((d) => d.text).join(" ");
     const { ref, detail } = refAndDetailFromDescription(descText);
 
-    if (ref || detail) {
+    if (ref) {
       hints.push({ amount, ref, detail });
-    } else if (amount > 50) {
-      hints.push({ amount, ref: null, detail: descText.slice(0, 100) || null });
+    } else if (detail) {
+      hints.push({ amount, ref: null, detail });
     }
   }
 
-  return hints;
+  return hints.sort((a, b) => {
+    if (a.ref && !b.ref) return -1;
+    if (!a.ref && b.ref) return 1;
+    return 0;
+  });
 }
 
 export async function extractPdfSpatialPosteHints(buffer: Buffer): Promise<SpatialPosteHint[]> {
@@ -183,8 +199,7 @@ export async function extractPdfSpatialPosteHints(buffer: Buffer): Promise<Spati
  * Extrait le PDF en lignes de cellules (colonnes triées par X)
  * pour reconstituer les tableaux DPGF mal lus par pdf-parse.
  */
-export async function extractPdfTableRows(buffer: Buffer): Promise<string[][]> {
-  const items = await extractPdfTextItems(buffer);
+export function extractPdfTableRowsFromItems(items: TextItem[]): string[][] {
   if (items.length === 0) return [];
 
   const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x);
@@ -200,6 +215,10 @@ export async function extractPdfTableRows(buffer: Buffer): Promise<string[][]> {
   }
 
   return rowGroups.map((group) => clusterIntoColumns(group));
+}
+
+export async function extractPdfTableRows(buffer: Buffer): Promise<string[][]> {
+  return extractPdfTableRowsFromItems(await extractPdfTextItems(buffer));
 }
 
 /** Texte tabulé (fallback parseDevisText). */
