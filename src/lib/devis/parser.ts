@@ -406,7 +406,7 @@ function scorePosteSet(postes: PosteAnalyse[]): number {
     (p) =>
       p.type_ligne === "poste" &&
       p.prix_total != null &&
-      p.prix_total > 50 &&
+      p.prix_total > 0 &&
       !/^remise\b/i.test(p.designation),
   ).length;
 }

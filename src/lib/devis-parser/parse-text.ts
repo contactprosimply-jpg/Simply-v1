@@ -97,10 +97,20 @@ function assignAmountColumns(amounts: number[]): {
 
   if (amounts.length === 2) {
     const [a, b] = amounts;
-    if (a <= 9999 && b > a && (Number.isInteger(a) || a < 100)) {
+    if (a <= 9999 && b > a && a < 100 && Number.isInteger(a)) {
       quantite = a;
       prixTotal = b;
       prixUnitaire = b / a;
+    } else if (a > b && b > 0) {
+      const ratio = a / b;
+      if (ratio >= 1 && ratio <= 9999 && Math.abs(ratio - Math.round(ratio)) < 0.03) {
+        prixTotal = a;
+        prixUnitaire = b;
+        quantite = Math.round(ratio);
+      } else {
+        prixUnitaire = a;
+        prixTotal = b;
+      }
     } else {
       prixUnitaire = a;
       prixTotal = b;
