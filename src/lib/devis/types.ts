@@ -1,16 +1,16 @@
 import type { BudgetPosteTypeLigne, DevisDocumentType } from "@/lib/database.types";
 
-export interface DevisAnalyseDocument {
+export interface DocumentAnalyse {
   type_document: DevisDocumentType;
   metiers_detectes: string[];
-  devise: string;
   total_ht: number | null;
   total_ttc: number | null;
   taux_tva: number | null;
+  structure_reconnue: boolean;
   remarques: string[];
 }
 
-export interface DevisAnalysePosteRaw {
+export interface PosteAnalyse {
   numero_position: string | null;
   lot: string | null;
   metier: string | null;
@@ -20,22 +20,14 @@ export interface DevisAnalysePosteRaw {
   prix_unitaire: number | null;
   prix_total: number | null;
   type_ligne: BudgetPosteTypeLigne;
-}
-
-export interface DevisAnalysePoste extends DevisAnalysePosteRaw {
   coherence_ok: boolean;
   remarque: string | null;
+  ordre: number;
 }
 
-export interface DevisAnalyseAiResult {
-  document: DevisAnalyseDocument;
-  postes: DevisAnalysePosteRaw[];
-}
-
-export interface DevisAnalysePreview {
-  document: DevisAnalyseDocument;
-  postes: DevisAnalysePoste[];
-  storage_path: string;
+export interface ResultatAnalyse {
+  document: DocumentAnalyse;
+  postes: PosteAnalyse[];
 }
 
 export class DevisAnalyserError extends Error {
@@ -48,3 +40,5 @@ export class DevisAnalyserError extends Error {
     this.name = "DevisAnalyserError";
   }
 }
+
+export type GrilleDevis = string[][];

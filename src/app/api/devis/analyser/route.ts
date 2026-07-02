@@ -1,7 +1,6 @@
 import { apiError, apiOk } from "@/lib/api-response";
 import { getOptionalUserId, requireSupabaseConfig } from "@/lib/api-auth";
-import { requireGroqConfig } from "@/lib/groq/env";
-import { DevisAnalyserError } from "@/lib/devis-analyse/types";
+import { DevisAnalyserError } from "@/lib/devis/types";
 import { analyserDevisFile } from "@/services/devis-analyser";
 
 export const dynamic = "force-dynamic";
@@ -9,9 +8,6 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   const configError = requireSupabaseConfig();
   if (configError) return apiError(configError.error, configError.code, configError.status);
-
-  const groqError = requireGroqConfig();
-  if (groqError) return apiError(groqError.error, groqError.code, groqError.status);
 
   let formData: FormData;
   try {

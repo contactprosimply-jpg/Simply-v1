@@ -1,13 +1,13 @@
-import { applyPosteCoherenceChecks } from "@/lib/devis-analyse/coherence";
-import {
-  extractDevisRawContent,
-  truncateForModel,
-} from "@/lib/devis-analyse/extract-content";
-import { analyseDevisWithGroq } from "@/lib/devis-analyse/groq";
-import { uploadDevisToStorage } from "@/lib/devis-analyse/storage";
-import type { DevisAnalysePreview } from "@/lib/devis-analyse/types";
-import { DevisAnalyserError } from "@/lib/devis-analyse/types";
-import { detectDevisType, validateDevisFile } from "@/lib/devis-upload";
+import { extractGrilleFromBuffer } from "@/lib/devis/extract-grid";
+import { analyserDevis } from "@/lib/devis/parser";
+import { uploadDevisToStorage } from "@/lib/devis/storage";
+import type { ResultatAnalyse } from "@/lib/devis/types";
+import { DevisAnalyserError } from "@/lib/devis/types";
+import { validateDevisFile } from "@/lib/devis-upload";
+
+export interface DevisAnalysePreview extends ResultatAnalyse {
+  storage_path: string;
+}
 
 function mimeForFile(type: string, file: File): string {
   if (file.type) return file.type;
@@ -33,10 +33,9 @@ export async function analyserDevisFile(input: {
   }
 
   const buffer = Buffer.from(await input.file.arrayBuffer());
-  const rawContent = await extractDevisRawContent(buffer, validation.type);
-  const contentForAi = truncateForModel(rawContent);
+  const { grille, pdfImperfect } = await extractGrilleFromBuffer(buffer, validation.type);
 
-  if (!contentForAi.trim()) {
+  if (grille.length === 0) {
     throw new DevisAnalyserError("Aucun contenu extractible dans le fichier.", 422, "EMPTY_CONTENT");
   }
 
@@ -47,14 +46,19 @@ export async function analyserDevisFile(input: {
     contentType: mimeForFile(validation.type, input.file),
   });
 
-  const aiResult = await analyseDevisWithGroq(contentForAi, input.file.name);
-  const postes = applyPosteCoherenceChecks(aiResult.postes);
+  const result = analyserDevis(grille);
+
+  if (validation.type === "pdf" && (!result.document.structure_reconnue || pdfImperfect)) {
+    result.document.structure_reconnue = false;
+    if (!result.document.remarques.some((r) => r.includes("PDF"))) {
+      result.document.remarques.push(
+        "Extraction PDF imparfaite — mapping manuel recommandé (étape C).",
+      );
+    }
+  }
 
   return {
-    document: aiResult.document,
-    postes,
+    ...result,
     storage_path,
   };
 }
-
-export { detectDevisType };

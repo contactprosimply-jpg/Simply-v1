@@ -1,6 +1,6 @@
 import { sanitizeFileName } from "@/lib/devis-upload";
+import { DevisAnalyserError } from "@/lib/devis/types";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { DevisAnalyserError } from "@/lib/devis-analyse/types";
 
 export function buildAnalyserStoragePath(chantierId: string, fileName: string): string {
   const id = crypto.randomUUID();

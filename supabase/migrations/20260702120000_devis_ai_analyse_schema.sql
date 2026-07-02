@@ -1,4 +1,4 @@
--- Simply BTP — Étape B : schéma analyse IA devis/DPGF (additif, idempotent)
+-- Simply BTP — Étape B : schéma analyse devis/DPGF (additif, idempotent)
 
 -- =============================================================================
 -- budget_postes — colonnes métier / type de ligne / cohérence

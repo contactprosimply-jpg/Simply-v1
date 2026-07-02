@@ -42,7 +42,7 @@ export default function DevisTestPage() {
       <div>
         <h1 className="text-2xl font-bold text-brand">Test analyse devis (jetable)</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          POST /api/devis/analyser — prévisualisation JSON, sans persistance postes/tâches.
+          POST /api/devis/analyser — parseur heuristique gratuit, prévisualisation JSON sans persistance.
         </p>
       </div>
 
