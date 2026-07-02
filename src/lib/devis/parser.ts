@@ -8,8 +8,9 @@ import {
 import { aggregateMetiers, detectMetier } from "@/lib/devis/metiers";
 import { parseFrenchNumber, parseIntegerQty } from "@/lib/devis/numbers";
 import type { DocumentAnalyse, GrilleDevis, PosteAnalyse, ResultatAnalyse } from "@/lib/devis/types";
-import { parseDevisTable } from "@/lib/devis-parser/parse-text";
+import { parseDevisTable, parseDevisText } from "@/lib/devis-parser/parse-text";
 import type { ParsedPoste } from "@/lib/devis-parser/types";
+import { rowsToPlainText } from "@/lib/devis-parser/extract-pdf-layout";
 
 type ColumnRole =
   | "position"
@@ -389,9 +390,46 @@ function parseFromLayoutEngine(grille: GrilleDevis): {
   };
 }
 
+function parseFromTextEngine(text: string): {
+  postes: PosteAnalyse[];
+  prixFinal: number | null;
+} {
+  const parsed = parseDevisText(text);
+  return {
+    postes: parsed.postes.map(parsedToPosteAnalyse),
+    prixFinal: parsed.prixFinal,
+  };
+}
+
+function scorePosteSet(postes: PosteAnalyse[]): number {
+  return postes.filter(
+    (p) =>
+      p.type_ligne === "poste" &&
+      p.prix_total != null &&
+      p.prix_total > 50 &&
+      !/^remise\b/i.test(p.designation),
+  ).length;
+}
+
+function pickBestPosteCandidates(candidates: PosteAnalyse[][]): PosteAnalyse[] {
+  let best: PosteAnalyse[] = [];
+  let bestScore = -1;
+  for (const candidate of candidates) {
+    const filtered = candidate.filter((p) => isPlausiblePoste(p));
+    const score = scorePosteSet(filtered);
+    if (score > bestScore || (score === bestScore && filtered.length > best.length)) {
+      bestScore = score;
+      best = filtered;
+    }
+  }
+  return best;
+}
+
 export interface AnalyserDevisOptions {
   /** PDF ou extraction imparfaite */
   pdfImperfect?: boolean;
+  /** Texte brut pdf-parse (regroupement vertical) */
+  pdfPlainText?: string;
 }
 
 /**
@@ -424,12 +462,37 @@ export function analyserDevis(
     }
     postes = parseStructuredRows(grille, headerIdx, map, { structureReconnue: structure_reconnue });
   } else {
-    const layout = parseFromLayoutEngine(grille);
-    postes = layout.postes;
-    prixFinalLayout = layout.prixFinal;
-    if (postes.length < 3) {
-      postes = parseRawFallback(grille);
+    const candidates: PosteAnalyse[][] = [];
+    let prixCandidates: (number | null)[] = [];
+
+    if (options?.pdfPlainText) {
+      const fromText = parseFromTextEngine(options.pdfPlainText);
+      candidates.push(fromText.postes);
+      prixCandidates.push(fromText.prixFinal);
+
+      const fromTabText = parseFromTextEngine(rowsToPlainText(grille));
+      candidates.push(fromTabText.postes);
+      prixCandidates.push(fromTabText.prixFinal);
     }
+
+    const layout = parseFromLayoutEngine(grille);
+    candidates.push(layout.postes);
+    prixCandidates.push(layout.prixFinal);
+
+    if (candidates.every((c) => scorePosteSet(c) < 3)) {
+      candidates.push(parseRawFallback(grille));
+      prixCandidates.push(null);
+    }
+
+    const bestIdx = candidates.reduce(
+      (best, c, i) => {
+        const score = scorePosteSet(c.filter((p) => isPlausiblePoste(p)));
+        return score > best.score ? { score, idx: i } : best;
+      },
+      { score: -1, idx: 0 },
+    );
+    postes = pickBestPosteCandidates(candidates);
+    prixFinalLayout = prixCandidates[bestIdx.idx] ?? layout.prixFinal;
   }
 
   postes = postes.filter((p) => isPlausiblePoste(p));

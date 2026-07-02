@@ -81,7 +81,7 @@ function pdfTextToGrille(text: string): GrilleDevis {
 export async function extractGrilleFromBuffer(
   buffer: Buffer,
   type: DevisTypeFichier,
-): Promise<{ grille: GrilleDevis; pdfImperfect: boolean }> {
+): Promise<{ grille: GrilleDevis; pdfImperfect: boolean; pdfPlainText?: string }> {
   switch (type) {
     case "xlsx":
       return { grille: sanitizeGrille(extractExcelGrille(buffer)), pdfImperfect: false };
@@ -115,7 +115,7 @@ export async function extractGrilleFromBuffer(
         pdfImperfect = false;
       }
 
-      return { grille: sanitizeGrille(grille), pdfImperfect };
+      return { grille: sanitizeGrille(grille), pdfImperfect, pdfPlainText: text };
     }
     default:
       throw new DevisAnalyserError("Type de fichier non supporté.", 400, "INVALID_TYPE");

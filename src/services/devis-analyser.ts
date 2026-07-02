@@ -33,7 +33,10 @@ export async function analyserDevisFile(input: {
   }
 
   const buffer = Buffer.from(await input.file.arrayBuffer());
-  const { grille, pdfImperfect } = await extractGrilleFromBuffer(buffer, validation.type);
+  const { grille, pdfImperfect, pdfPlainText } = await extractGrilleFromBuffer(
+    buffer,
+    validation.type,
+  );
 
   if (grille.length === 0) {
     throw new DevisAnalyserError("Aucun contenu extractible dans le fichier.", 422, "EMPTY_CONTENT");
@@ -48,6 +51,7 @@ export async function analyserDevisFile(input: {
 
   const result = analyserDevis(grille, {
     pdfImperfect: validation.type === "pdf" && pdfImperfect,
+    pdfPlainText: validation.type === "pdf" ? pdfPlainText : undefined,
   });
 
   if (validation.type === "pdf" && pdfImperfect) {

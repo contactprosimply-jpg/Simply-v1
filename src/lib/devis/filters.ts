@@ -91,11 +91,13 @@ export function isPlausiblePoste(p: {
 
   if (p.type_ligne === "poste") {
     if (p.designation.length < 5) return false;
+    if (/^remise\b/i.test(normalizeText(p.designation))) return false;
     if (isAmountOnly(p.designation)) return false;
     if (!hasPositivePrice(p.prix_unitaire, p.prix_total)) return false;
     if (p.metier != null || hasBtpSignal(p.designation)) return true;
     if (p.quantite != null && p.prix_unitaire != null && p.prix_total != null) return true;
-    return p.designation.length >= 10;
+    if (p.prix_total != null && p.prix_total > 50 && p.designation.length >= 6) return true;
+    return false;
   }
 
   return false;

@@ -8,9 +8,11 @@ export const POSITION_START_RE = /^(\d+(?:\.\d+)*)\s+(.+)$/;
 
 const UNIT_ONLY_RE = /^(u|ens|ff|forfait|m²|m2|ml|kg|t|h|j|unité|unite|pce|pc)$/i;
 
+const PAGE_BREAK_RE = /^(page\s+\d|\d{1,3}\s+sur\s+\d{1,3})/i;
+
 /**
  * Regroupe les lignes extraites verticalement par pdf-parse
- * (n°, libellé, qté, unité, PU, total sur des lignes séparées).
+ * (libellé, qté, unité, PU, total sur des lignes séparées — avec ou sans n°).
  */
 export function normalizePdfLines(rawLines: string[]): string[] {
   const lines = rawLines
@@ -32,69 +34,87 @@ function groupVerticalBlocks(lines: string[]): string[] {
   };
 
   for (const line of lines) {
+    if (PAGE_BREAK_RE.test(line)) {
+      flush();
+      continue;
+    }
+
+    const amountsOnLine = extractAmounts(line).length;
     const isPositionStart = POSITION_START_RE.test(line);
     const isPositionOnly = POSITION_ONLY_RE.test(line);
 
-    if (isPositionStart || isPositionOnly) {
+    if ((isPositionStart || isPositionOnly) && block.length > 0) {
       flush();
-      block.push(line);
-      if (isPositionStart && extractAmounts(line).length >= 2) {
-        flush();
-      }
+    }
+
+    if (amountsOnLine >= 2 && block.length === 0) {
+      result.push(line);
       continue;
     }
 
-    if (block.length > 0) {
+    if (amountsOnLine >= 2 && block.length > 0) {
       block.push(line);
-      const joined = block.join(" ");
-      const amounts = extractAmounts(joined);
-      if (amounts.length >= 2) {
-        flush();
-      } else if (block.length >= 8) {
-        flush();
-      }
+      flush();
       continue;
     }
 
-    result.push(line);
+    block.push(line);
+    const joinedAmounts = extractAmounts(block.join(" ")).length;
+    if (joinedAmounts >= 2) {
+      flush();
+    } else if (block.length >= 10) {
+      flush();
+    }
   }
 
   flush();
   return result;
 }
 
-/** Fusionne libellé multi-lignes sans n° en tête. */
+/** Fusionne libellé multi-lignes jusqu'à obtenir 2 montants. */
 function mergeContinuationLines(lines: string[]): string[] {
   const merged: string[] = [];
   let pending: string | null = null;
 
-  for (const line of lines) {
-    const startsPosition = POSITION_START_RE.test(line) || POSITION_ONLY_RE.test(line);
-
-    if (startsPosition) {
-      if (pending) merged.push(pending);
-      pending = line;
-      if (extractAmounts(line).length >= 2) {
-        merged.push(pending);
-        pending = null;
-      }
-      continue;
-    }
-
+  const flushPending = () => {
     if (pending) {
-      pending = `${pending} ${line}`;
-      const amounts = extractAmounts(pending);
-      if (amounts.length >= 2 || pending.length > 100) {
-        merged.push(pending);
-        pending = null;
-      }
+      merged.push(pending);
+      pending = null;
+    }
+  };
+
+  for (const line of lines) {
+    if (PAGE_BREAK_RE.test(line)) {
+      flushPending();
       continue;
     }
 
-    merged.push(line);
+    const amounts = extractAmounts(line);
+
+    if (amounts.length >= 2 && !pending) {
+      merged.push(line);
+      continue;
+    }
+
+    if (amounts.length >= 2 && pending) {
+      pending = `${pending} ${line}`;
+      merged.push(pending);
+      pending = null;
+      continue;
+    }
+
+    pending = pending ? `${pending} ${line}` : line;
+    const pendingAmounts = extractAmounts(pending);
+    if (pendingAmounts.length >= 2) {
+      merged.push(pending);
+      pending = null;
+    } else if (pending.length > 120) {
+      merged.push(pending);
+      pending = null;
+    }
   }
 
-  if (pending) merged.push(pending);
+  flushPending();
   return merged;
 }
 
