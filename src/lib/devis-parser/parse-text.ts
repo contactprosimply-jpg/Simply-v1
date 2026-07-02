@@ -95,8 +95,24 @@ function assignAmountColumns(amounts: number[]): {
   let prixUnitaire: number | null = amounts.length >= 2 ? amounts[amounts.length - 2]! : null;
   let quantite: number | null = amounts.length >= 3 ? amounts[amounts.length - 3]! : null;
 
-  if (amounts.length === 2) {
-    const [a, b] = amounts;
+  if (amounts.length >= 3) {
+    const [q, pu, tot] = amounts.slice(-3);
+    if (
+      q > 0 &&
+      q <= 9999 &&
+      pu > 0 &&
+      tot > pu &&
+      Math.abs(q * pu - tot) <= Math.max(1, tot * 0.02)
+    ) {
+      return { quantite: Math.round(q), prixUnitaire: pu, prixTotal: tot };
+    }
+    prixUnitaire = amounts[amounts.length - 2]!;
+    prixTotal = amounts[amounts.length - 1]!;
+    quantite = null;
+  }
+
+  if (amounts.length >= 2) {
+    const [a, b] = amounts.slice(-2) as [number, number];
     if (a <= 9999 && b > a && a < 100 && Number.isInteger(a)) {
       quantite = a;
       prixTotal = b;
@@ -119,6 +135,25 @@ function assignAmountColumns(amounts: number[]): {
 
   if (quantite !== null && quantite > 10_000 && prixUnitaire !== null && prixUnitaire < 100) {
     [quantite, prixUnitaire] = [prixUnitaire, quantite];
+  }
+
+  if (
+    quantite != null &&
+    prixUnitaire != null &&
+    prixTotal > 0 &&
+    quantite > 9999
+  ) {
+    return null;
+  }
+
+  if (
+    quantite != null &&
+    prixUnitaire != null &&
+    prixTotal > 0 &&
+    quantite > 0 &&
+    Math.abs(quantite * prixUnitaire - prixTotal) > Math.max(1, prixTotal * 0.05)
+  ) {
+    return null;
   }
 
   return { quantite, prixUnitaire, prixTotal };
@@ -378,13 +413,59 @@ function textWithoutAmounts(line: string): string {
 
 function isVerticalNoiseLine(line: string): boolean {
   const t = line.trim();
-  if (PAGE_MARKER_RE.test(t)) return true;
   if (COLUMN_LABEL_RE.test(t)) return true;
-  if (/^[uU]$/.test(t)) return true;
   if (/^\d{1,2}[,.]00$/.test(t)) return true;
   if (/^0[,.]0+$/.test(t.replace(/\s/g, ""))) return true;
   if (isTableHeaderLine(t)) return true;
   return false;
+}
+
+function collectTrailingMeta(
+  rawLines: string[],
+  startIdx: number,
+): { qty: number | null; unit: string | null; skip: number } {
+  let qty: number | null = null;
+  let unit: string | null = null;
+  let skip = 0;
+
+  for (let j = startIdx; j < Math.min(startIdx + 4, rawLines.length); j++) {
+    const line = rawLines[j]!.replace(/\s+/g, " ").trim();
+    if (!line || PAGE_MARKER_RE.test(line) || isTableHeaderLine(line)) break;
+    if (/^\d{1,2}[,.]00$/.test(line) || /^0[,.]0+$/.test(line.replace(/\s/g, ""))) {
+      skip += 1;
+      continue;
+    }
+    const u = parseUnitToken(line);
+    if (u && /^[uU]$|^(u|ml|m2|m²|ens|ff|forfait)$/i.test(line)) {
+      unit = u;
+      skip += 1;
+      continue;
+    }
+    const qi = parseIntegerToken(line);
+    if (qi != null && line === String(qi)) {
+      qty = qi;
+      skip += 1;
+      continue;
+    }
+    if (extractAmounts(splitGluedAmounts(line)).length >= 2) break;
+    if (line.length >= 8 && /[a-zàâäéèêëïîôùûüç]{4,}/i.test(line)) break;
+    break;
+  }
+
+  return { qty, unit, skip };
+}
+
+function defaultUnite(
+  unite: string | null,
+  quantite: number | null,
+  prixUnitaire: number | null,
+  prixTotal: number,
+): string | null {
+  if (unite) return unite;
+  if (quantite != null || (prixUnitaire != null && Math.abs(prixUnitaire - prixTotal) < 0.02)) {
+    return "U";
+  }
+  return null;
 }
 
 /** Scan pdf-parse vertical lines (DEMATHIEU: libellé puis qté/U puis montants collés). */
@@ -402,12 +483,23 @@ function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
     pendingUnit = null;
   };
 
-  for (const raw of rawLines) {
+  const flushQtyUnit = () => {
+    pendingQty = null;
+    pendingUnit = null;
+  };
+
+  for (let i = 0; i < rawLines.length; i++) {
+    const raw = rawLines[i]!;
     const line = raw.replace(/\s+/g, " ").trim();
     if (!line) continue;
 
+    if (PAGE_MARKER_RE.test(line)) {
+      flushQtyUnit();
+      continue;
+    }
+
     if (isJunkLine(line) || isVerticalNoiseLine(line)) {
-      if (extractAmounts(splitGluedAmounts(line)).length < 2) flushPending();
+      if (extractAmounts(splitGluedAmounts(line)).length < 2) flushQtyUnit();
       continue;
     }
 
@@ -423,10 +515,17 @@ function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
       continue;
     }
 
+    const unitEarly = parseUnitToken(line);
+    if (unitEarly && /^[uU]$|^(u|ml|m2|m²|ens|ff|forfait)$/i.test(line)) {
+      pendingUnit = unitEarly;
+      continue;
+    }
+
     const normalized = splitGluedAmounts(line);
     const amounts = extractAmounts(normalized);
 
     if (amounts.length >= 2) {
+      const trailing = collectTrailingMeta(rawLines, i + 1);
       let designation = textWithoutAmounts(line);
       if (designation.length < 4) {
         const parts = [...pendingDesc];
@@ -434,34 +533,54 @@ function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
         if (pendingUnit) parts.push(pendingUnit);
         designation = parts.join(" ").trim();
       }
+
+      let poste: ParsedPoste | null = null;
+
       if (designation.length >= 4) {
         const synthetic = `${designation} ${normalized}`.trim();
-        const poste = parsePosteLine(synthetic, currentLot, ordre);
-        if (poste) {
-          postes.push(poste);
-          ordre += 1;
-        }
+        poste = parsePosteLine(synthetic, currentLot, ordre);
       } else {
         const cols = assignAmountColumns(amounts);
         if (cols && cols.prixTotal > 50) {
+          const qty = cols.quantite ?? pendingQty ?? trailing.qty;
+          const unit = defaultUnite(
+            pendingUnit ?? trailing.unit,
+            qty,
+            cols.prixUnitaire,
+            cols.prixTotal,
+          );
           const fallbackDes = `Poste ${ordre + 1} (HT ${cols.prixTotal.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €)`;
-          const poste = buildPosteFromParts(
+          poste = buildPosteFromParts(
             line,
             currentLot,
             ordre,
             null,
             fallbackDes,
-            pendingUnit,
-            cols.quantite ?? pendingQty,
+            unit,
+            qty,
             cols.prixUnitaire,
             cols.prixTotal,
           );
-          if (poste) {
-            postes.push(poste);
-            ordre += 1;
-          }
         }
       }
+
+      if (poste) {
+        if (!poste.unite && poste.prixTotal != null) {
+          poste.unite = defaultUnite(
+            pendingUnit ?? trailing.unit,
+            poste.quantite,
+            poste.prixUnitaire,
+            poste.prixTotal,
+          );
+        }
+        if (poste.quantite == null && (pendingQty ?? trailing.qty) != null) {
+          poste.quantite = pendingQty ?? trailing.qty;
+        }
+        postes.push(poste);
+        ordre += 1;
+      }
+
+      i += trailing.skip;
       flushPending();
       continue;
     }
@@ -469,12 +588,6 @@ function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
     const qi = parseIntegerToken(line);
     if (qi != null && line === String(qi)) {
       pendingQty = qi;
-      continue;
-    }
-
-    const unit = parseUnitToken(line);
-    if (unit && /^[uU]$|^(u|ml|m2|m²|ens|ff|forfait)$/i.test(line)) {
-      pendingUnit = unit;
       continue;
     }
 

@@ -425,6 +425,49 @@ function pickBestPosteCandidates(candidates: PosteAnalyse[][]): PosteAnalyse[] {
   return best;
 }
 
+function enrichDesignationsFromGrille(postes: PosteAnalyse[], grille: GrilleDevis): void {
+  for (const poste of postes) {
+    if (poste.type_ligne !== "poste" || poste.prix_total == null) continue;
+    if (!/^Poste \d+/.test(poste.designation)) continue;
+
+    for (const row of grille) {
+      const rowAmounts = row
+        .map((c) => parseFrenchNumber(c))
+        .filter((v): v is number => v != null);
+      const matchesTotal = rowAmounts.some(
+        (a) => Math.abs(a - poste.prix_total!) < 0.05,
+      );
+      if (!matchesTotal) continue;
+
+      const texts = row
+        .map((c) => c.trim())
+        .filter((c) => {
+          if (!c || c.length < 8) return false;
+          if (/^[uU]$/.test(c)) return false;
+          if (parseFrenchNumber(c) != null && /[,.]\d{2}/.test(c)) return false;
+          if (isJunkDesignation(c)) return false;
+          return /[a-zàâäéèêëïîôùûüç]{5,}/i.test(c);
+        })
+        .sort((a, b) => b.length - a.length);
+
+      const label = texts[0];
+      if (label) {
+        poste.designation = label;
+        poste.metier = detectMetier(label);
+      }
+      break;
+    }
+  }
+}
+
+function refreshPosteCoherence(postes: PosteAnalyse[]): PosteAnalyse[] {
+  return postes.map((p) => {
+    if (p.type_ligne !== "poste") return p;
+    const { coherence_ok: _c, remarque: _r, ...raw } = p;
+    return applyCoherenceToPoste(raw);
+  });
+}
+
 export interface AnalyserDevisOptions {
   /** PDF ou extraction imparfaite */
   pdfImperfect?: boolean;
@@ -501,6 +544,11 @@ export function analyserDevis(
   }
 
   postes = postes.filter((p) => isPlausiblePoste(p));
+
+  if (options?.pdfPlainText) {
+    enrichDesignationsFromGrille(postes, grille);
+    postes = refreshPosteCoherence(postes);
+  }
 
   const plausiblePostes = postes.filter((p) => p.type_ligne === "poste");
   if (plausiblePostes.length < 3) {
