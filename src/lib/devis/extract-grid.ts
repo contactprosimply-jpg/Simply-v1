@@ -2,7 +2,11 @@ import type { DevisTypeFichier } from "@/lib/database.types";
 import { sanitizeGrille } from "@/lib/devis/filters";
 import { DevisAnalyserError } from "@/lib/devis/types";
 import type { GrilleDevis } from "@/lib/devis/types";
-import { extractPdfTableRows } from "@/lib/devis-parser/extract-pdf-layout";
+import {
+  extractPdfSpatialPosteHints,
+  extractPdfTableRows,
+  type SpatialPosteHint,
+} from "@/lib/devis-parser/extract-pdf-layout";
 import * as XLSX from "xlsx";
 
 const PDF_MIN_TEXT_CHARS = 80;
@@ -81,7 +85,12 @@ function pdfTextToGrille(text: string): GrilleDevis {
 export async function extractGrilleFromBuffer(
   buffer: Buffer,
   type: DevisTypeFichier,
-): Promise<{ grille: GrilleDevis; pdfImperfect: boolean; pdfPlainText?: string }> {
+): Promise<{
+  grille: GrilleDevis;
+  pdfImperfect: boolean;
+  pdfPlainText?: string;
+  spatialHints?: SpatialPosteHint[];
+}> {
   switch (type) {
     case "xlsx":
       return { grille: sanitizeGrille(extractExcelGrille(buffer)), pdfImperfect: false };
@@ -98,11 +107,16 @@ export async function extractGrilleFromBuffer(
       }
 
       let grille: GrilleDevis = [];
+      let spatialHints: SpatialPosteHint[] = [];
 
       try {
-        grille = await extractPdfTableRows(buffer);
+        [grille, spatialHints] = await Promise.all([
+          extractPdfTableRows(buffer),
+          extractPdfSpatialPosteHints(buffer),
+        ]);
       } catch {
         grille = [];
+        spatialHints = [];
       }
 
       const avgCols = averageColumnCount(grille);
@@ -112,7 +126,12 @@ export async function extractGrilleFromBuffer(
       }
 
       // PDF devis BTP : toujours texte pdf-parse en priorité (layout pdfjs souvent trompeur)
-      return { grille: sanitizeGrille(grille), pdfImperfect: true, pdfPlainText: text };
+      return {
+        grille: sanitizeGrille(grille),
+        pdfImperfect: true,
+        pdfPlainText: text,
+        spatialHints,
+      };
     }
     default:
       throw new DevisAnalyserError("Type de fichier non supporté.", 400, "INVALID_TYPE");

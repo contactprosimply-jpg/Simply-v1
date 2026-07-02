@@ -439,6 +439,8 @@ export interface AnalyserDevisOptions {
   pdfImperfect?: boolean;
   /** Texte brut pdf-parse (regroupement vertical) */
   pdfPlainText?: string;
+  /** Libellés REP détectés par position pdfjs (colonne Description) */
+  spatialHints?: import("@/lib/devis-parser/extract-pdf-layout").SpatialPosteHint[];
 }
 
 /**
@@ -512,7 +514,12 @@ export function analyserDevis(
   postes = postes.filter((p) => isPlausiblePoste(p));
 
   if (options?.pdfPlainText) {
-    enrichPosteDesignationsFromPdf(postes, grille, options.pdfPlainText);
+    enrichPosteDesignationsFromPdf(
+      postes,
+      grille,
+      options.pdfPlainText,
+      options.spatialHints,
+    );
     postes = refreshPosteCoherence(postes);
 
     const fallbackPostes = postes.filter(
@@ -525,7 +532,10 @@ export function analyserDevis(
       ]
         .join("\n")
         .toUpperCase();
-      if (!/\bREP\b|\bREF\b/.test(sources)) {
+      if (
+        !/\bREP\b|\bREF\b|\bRÉP\b/i.test(sources) &&
+        !(options.spatialHints ?? []).some((h) => h.ref)
+      ) {
         remarques.push(
           "Références REP/REF absentes du texte PDF extrait — libellés peut-être dans des dessins non textuels.",
         );

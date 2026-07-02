@@ -1,11 +1,26 @@
-interface TextItem {
+import { extractAmounts, splitGluedAmounts } from "@/lib/devis-parser/numbers";
+import {
+  extractPosteReference,
+  mergeSplitReferenceLines,
+  normalizeExtractedText,
+} from "@/lib/devis-parser/poste-references";
+
+export interface TextItem {
   x: number;
   y: number;
   text: string;
+  page: number;
+}
+
+export interface SpatialPosteHint {
+  amount: number;
+  ref: string | null;
+  detail: string | null;
 }
 
 const Y_TOLERANCE = 5;
 const X_GAP = 12;
+const DESC_ABOVE_PTS = 280;
 
 function estimateEndX(item: TextItem): number {
   return item.x + Math.max(item.text.length * 4.5, 10);
@@ -33,11 +48,56 @@ function clusterIntoColumns(group: TextItem[]): string[] {
   return columns.filter(Boolean);
 }
 
-/**
- * Extrait le PDF en lignes de cellules (colonnes triées par X)
- * pour reconstituer les tableaux DPGF mal lus par pdf-parse.
- */
-export async function extractPdfTableRows(buffer: Buffer): Promise<string[][]> {
+function amountFromText(text: string): number | null {
+  const amounts = extractAmounts(splitGluedAmounts(normalizeExtractedText(text)));
+  if (amounts.length === 0) return null;
+  return amounts[amounts.length - 1]!;
+}
+
+function isDetailFragment(text: string): boolean {
+  const t = normalizeExtractedText(text);
+  if (!t || t.length < 8) return false;
+  if (extractPosteReference(t)) return false;
+  if (amountFromText(t) != null) return false;
+  return /[a-zàâäéèêëïîôùûüç]{4,}/i.test(t);
+}
+
+function refAndDetailFromDescription(raw: string): { ref: string | null; detail: string | null } {
+  const text = normalizeExtractedText(mergeSplitReferenceLines([raw]).join(" "));
+  if (!text) return { ref: null, detail: null };
+
+  const ref = extractPosteReference(text);
+  if (ref) {
+    let detail: string | null = null;
+    const idx = text.indexOf(ref);
+    if (idx >= 0) {
+      const tail = text.slice(idx + ref.length).replace(/^[\s—–-]+/, "").trim();
+      if (isDetailFragment(tail)) detail = tail.slice(0, 100);
+    }
+    if (!detail) {
+      const parts = text.split(/\s+/).filter(isDetailFragment);
+      detail = parts[0]?.slice(0, 100) ?? null;
+    }
+    return { ref, detail };
+  }
+
+  if (/\bR[ÉE]P\b/i.test(text)) {
+    const m = text.match(/\bR[ÉE]P\b\s*(?:N[°º\u00B0\u00BA]?|No\.?|#)?\s*0*(\d{1,4})\b/i);
+    if (m) {
+      const synthetic = `REP N°${m[1]}`;
+      const tail = text.replace(/\bR[ÉE]P\b\s*(?:N[°º\u00B0\u00BA]?|No\.?|#)?\s*0*\d{1,4}\b/i, "").trim();
+      return {
+        ref: synthetic,
+        detail: isDetailFragment(tail) ? tail.slice(0, 100) : null,
+      };
+    }
+  }
+
+  return { ref: null, detail: null };
+}
+
+/** Tous les fragments texte pdfjs avec position (page, x, y). */
+export async function extractPdfTextItems(buffer: Buffer): Promise<TextItem[]> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const doc = await pdfjs.getDocument({
     data: new Uint8Array(buffer),
@@ -52,19 +112,85 @@ export async function extractPdfTableRows(buffer: Buffer): Promise<string[][]> {
 
     for (const raw of content.items) {
       if (!("str" in raw)) continue;
-      const text = raw.str.replace(/\s+/g, " ").trim();
+      const text = normalizeExtractedText(raw.str);
       if (!text) continue;
       const t = raw.transform;
-      items.push({ x: t[4] ?? 0, y: t[5] ?? 0, text });
+      items.push({ x: t[4] ?? 0, y: t[5] ?? 0, text, page: pageNum });
     }
   }
 
+  return items;
+}
+
+/**
+ * Pour chaque montant détecté dans le PDF, récupère le libellé à gauche / au-dessus
+ * (colonne Description DPGF — indépendant du clustering ligne pdfjs).
+ */
+export function buildSpatialPosteHints(items: TextItem[]): SpatialPosteHint[] {
   if (items.length === 0) return [];
 
-  items.sort((a, b) => b.y - a.y || a.x - b.x);
+  const amountItems = items
+    .map((it) => ({ it, amount: amountFromText(it.text) }))
+    .filter((x): x is { it: TextItem; amount: number } => x.amount != null && x.amount > 10);
+
+  if (amountItems.length === 0) return [];
+
+  const amountXs = amountItems.map((a) => a.it.x).sort((a, b) => a - b);
+  const pivotX = amountXs[Math.floor(amountXs.length / 2)] ?? amountXs[0]!;
+  const rightAmounts = amountItems.filter((a) => a.it.x >= pivotX - 30);
+  const descMaxX = Math.min(...rightAmounts.map((a) => a.it.x)) - 25;
+
+  const hints: SpatialPosteHint[] = [];
+  const seen = new Set<string>();
+
+  const sorted = [...rightAmounts].sort(
+    (a, b) => a.it.page - b.it.page || b.it.y - a.it.y || a.it.x - b.it.x,
+  );
+
+  for (const { it, amount } of sorted) {
+    const key = `${it.page}:${Math.round(it.y)}:${amount}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const descItems = items.filter(
+      (d) =>
+        d.page === it.page &&
+        d.x < descMaxX &&
+        d.y >= it.y - Y_TOLERANCE &&
+        d.y <= it.y + DESC_ABOVE_PTS,
+    );
+
+    descItems.sort((a, b) => b.y - a.y || a.x - b.x);
+    const descText = descItems.map((d) => d.text).join(" ");
+    const { ref, detail } = refAndDetailFromDescription(descText);
+
+    if (ref || detail) {
+      hints.push({ amount, ref, detail });
+    } else if (amount > 50) {
+      hints.push({ amount, ref: null, detail: descText.slice(0, 100) || null });
+    }
+  }
+
+  return hints;
+}
+
+export async function extractPdfSpatialPosteHints(buffer: Buffer): Promise<SpatialPosteHint[]> {
+  const items = await extractPdfTextItems(buffer);
+  return buildSpatialPosteHints(items);
+}
+
+/**
+ * Extrait le PDF en lignes de cellules (colonnes triées par X)
+ * pour reconstituer les tableaux DPGF mal lus par pdf-parse.
+ */
+export async function extractPdfTableRows(buffer: Buffer): Promise<string[][]> {
+  const items = await extractPdfTextItems(buffer);
+  if (items.length === 0) return [];
+
+  const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x);
 
   const rowGroups: TextItem[][] = [];
-  for (const item of items) {
+  for (const item of sorted) {
     const current = rowGroups[rowGroups.length - 1];
     if (current && Math.abs(current[0]!.y - item.y) <= Y_TOLERANCE) {
       current.push(item);

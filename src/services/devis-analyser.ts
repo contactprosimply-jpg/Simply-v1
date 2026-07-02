@@ -33,7 +33,7 @@ export async function analyserDevisFile(input: {
   }
 
   const buffer = Buffer.from(await input.file.arrayBuffer());
-  const { grille, pdfImperfect, pdfPlainText } = await extractGrilleFromBuffer(
+  const { grille, pdfImperfect, pdfPlainText, spatialHints } = await extractGrilleFromBuffer(
     buffer,
     validation.type,
   );
@@ -52,6 +52,7 @@ export async function analyserDevisFile(input: {
   const result = analyserDevis(grille, {
     pdfImperfect: validation.type === "pdf" && pdfImperfect,
     pdfPlainText: validation.type === "pdf" ? pdfPlainText : undefined,
+    spatialHints: validation.type === "pdf" ? spatialHints : undefined,
   });
 
   if (validation.type === "pdf" && pdfImperfect) {

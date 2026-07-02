@@ -12,7 +12,7 @@ const { analyserDevis } = await import("../src/lib/devis/parser.ts");
 const { extractPosteReference } = await import("../src/lib/devis-parser/poste-references.ts");
 const { extractAmounts, splitGluedAmounts } = await import("../src/lib/devis-parser/numbers.ts");
 
-const { grille, pdfPlainText } = await extractGrilleFromBuffer(buffer, "pdf");
+const { grille, pdfPlainText, spatialHints } = await extractGrilleFromBuffer(buffer, "pdf");
 
 const repInPlain = (pdfPlainText ?? "").match(/REP[^\n]{0,30}/gi) ?? [];
 const repInGrille = [];
@@ -49,6 +49,9 @@ if (pdfPlainText) {
   }
 }
 
-const result = analyserDevis(grille, { pdfPlainText, pdfImperfect: true });
+console.log("spatial hints with REP:", (spatialHints ?? []).filter((h) => h.ref).slice(0, 8));
+console.log("spatial hints for 4724.95:", (spatialHints ?? []).filter((h) => Math.abs(h.amount - 4724.95) < 0.05));
+
+const result = analyserDevis(grille, { pdfPlainText, pdfImperfect: true, spatialHints });
 const p1 = result.postes.find((p) => p.type_ligne === "poste" && Math.abs((p.prix_total ?? 0) - 4724.95) < 0.05);
 console.log("poste 4724.95:", JSON.stringify(p1, null, 2));

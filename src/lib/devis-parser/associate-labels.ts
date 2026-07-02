@@ -2,6 +2,7 @@ import { isJunkDesignation } from "@/lib/devis/filters";
 import type { GrilleDevis, PosteAnalyse } from "@/lib/devis/types";
 import { detectMetier } from "@/lib/devis/metiers";
 import { extractAmounts, splitGluedAmounts } from "@/lib/devis-parser/numbers";
+import type { SpatialPosteHint } from "@/lib/devis-parser/extract-pdf-layout";
 import {
   extractPosteReference,
   extractRefNumber,
@@ -150,12 +151,35 @@ function enrichFromLineStream(postes: PosteAnalyse[], lines: string[]): void {
   }
 }
 
+function applySpatialPosteHints(postes: PosteAnalyse[], hints: SpatialPosteHint[]): void {
+  const used = new Set<number>();
+
+  for (const hint of hints) {
+    const poste = findPosteForAmount(postes, hint.amount, used);
+    if (!poste) continue;
+
+    if (hint.ref) {
+      applyRefToPoste(poste, hint.ref, hint.detail);
+    } else if (hint.detail && needsDesignationEnrichment(poste.designation)) {
+      poste.designation = hint.detail;
+      poste.metier = detectMetier(hint.detail);
+    }
+
+    used.add(poste.ordre);
+  }
+}
+
 /** Associe REP/REF aux postes via montants + recherche de ref proche (haut, bas, même ligne). */
 export function enrichPosteDesignationsFromPdf(
   postes: PosteAnalyse[],
   grille: GrilleDevis,
   pdfPlainText?: string,
+  spatialHints?: SpatialPosteHint[],
 ): void {
+  if (spatialHints && spatialHints.length > 0) {
+    applySpatialPosteHints(postes, spatialHints);
+  }
+
   const grilleLines = grilleToSearchLines(grille);
   enrichFromLineStream(postes, grilleLines);
 

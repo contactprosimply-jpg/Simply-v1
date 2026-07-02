@@ -2,16 +2,16 @@
 const N_MARK = `(?:N[°º\\u00B0\\u00BA]?|No\\.?|#)`;
 
 const POSTE_REF_LINE_RE = new RegExp(
-  `^(REP|REF|ART|POSTE|ITEM|LIGNE|L\\.?)\\s*(?:${N_MARK}|\\.|\\:|\\-)?\\s*[\\dA-Za-z][\\dA-Za-z.\\-/]*`,
+  `^(R[ÉE]P|REP|REF|ART|POSTE|ITEM|LIGNE|L\\.?)\\s*(?:${N_MARK}|\\.|\\:|\\-)?\\s*[\\dA-Za-z][\\dA-Za-z.\\-/]*`,
   "i",
 );
 
 const POSTE_REF_INLINE_RE = new RegExp(
-  `\\b(REP|REF|ART|POSTE|ITEM)\\s*(?:${N_MARK}|\\.|\\:|\\-)?\\s*[\\dA-Za-z][\\dA-Za-z.\\-/]*`,
+  `\\b(R[ÉE]P|REP|REF|ART|POSTE|ITEM)\\s*(?:${N_MARK}|\\.|\\:|\\-)?\\s*[\\dA-Za-z][\\dA-Za-z.\\-/]*`,
   "i",
 );
 
-const REP_PREFIX_ONLY_RE = /^(REP|REF|ART|POSTE|ITEM)$/i;
+const REP_PREFIX_ONLY_RE = /^(R[ÉE]P|REP|REF|ART|POSTE|ITEM)$/i;
 const REP_SUFFIX_RE = /^(?:N[°º\u00B0\u00BA]?|No\.?|#)\s*[\dA-Za-z][\dA-Za-z.\-/]*/i;
 
 export function normalizeExtractedText(text: string): string {
