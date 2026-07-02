@@ -7,10 +7,14 @@ const UUID_RE =
 
 export default function DevisTestPage() {
   const [chantierId, setChantierId] = useState("");
+  const [chantierNom, setChantierNom] = useState("cardinet — black swan");
+  const [chantierClient, setChantierClient] = useState("pajol");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [supabaseOk, setSupabaseOk] = useState<boolean | null>(null);
   const [missingEnv, setMissingEnv] = useState<string[]>([]);
 
@@ -26,13 +30,46 @@ export default function DevisTestPage() {
       });
   }, []);
 
+  async function handleCreateChantier() {
+    if (!chantierNom.trim()) return;
+    setSyncing(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await fetch("/api/chantiers/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nom: chantierNom.trim(),
+          client: chantierClient.trim() || null,
+        }),
+      });
+      const json = (await res.json()) as {
+        data?: { supabaseChantierId?: string };
+        error?: string;
+      };
+      if (!res.ok) throw new Error(json.error ?? "Création impossible");
+
+      const id = json.data?.supabaseChantierId;
+      if (!id) throw new Error("UUID non retourné");
+
+      setChantierId(id);
+      setSuccess(`Chantier créé / lié dans Supabase : ${id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!file || !chantierId.trim()) return;
 
     if (!UUID_RE.test(chantierId.trim())) {
       setError(
-        "chantier_id doit être un UUID Supabase (ex. a1b2c3d4-…), pas un nom de chantier. Récupérez-le dans Supabase → table chantiers.",
+        "chantier_id invalide. Cliquez « Créer le chantier dans Supabase » ci-dessous, ou collez un UUID depuis Supabase.",
       );
       return;
     }
@@ -44,6 +81,7 @@ export default function DevisTestPage() {
 
     setLoading(true);
     setError(null);
+    setSuccess(null);
     setResult(null);
 
     try {
@@ -79,49 +117,63 @@ export default function DevisTestPage() {
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
           <p className="font-semibold">Supabase non configuré sur ce déploiement Vercel</p>
           <p className="mt-2">
-            Variables manquantes :{" "}
-            <code className="rounded bg-white px-1">
-              {missingEnv.length > 0 ? missingEnv.join(", ") : "NEXT_PUBLIC_SUPABASE_URL, …"}
-            </code>
-          </p>
-          <p className="mt-2">
-            Copiez les variables depuis le projet{" "}
-            <strong>simply-v1-tvz7</strong> vers <strong>simply-v1</strong> dans{" "}
-            <a
-              href="https://vercel.com/planning-nikodex/simply-v1/settings/environment-variables"
-              className="underline"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Vercel → Settings → Environment Variables
-            </a>
-            , puis redéployez.
-          </p>
-          <p className="mt-2">
-            En attendant :{" "}
+            Utilisez{" "}
             <a href="https://simply-v1-tvz7.vercel.app/devis-test" className="font-medium underline">
               simply-v1-tvz7.vercel.app/devis-test
             </a>{" "}
-            (Supabase déjà configuré).
+            (variables Supabase déjà en place).
           </p>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-surface-dark bg-white p-4">
+      <section className="space-y-3 rounded-xl border border-surface-dark bg-white p-4">
+        <h2 className="text-sm font-semibold text-brand">1. Chantier Supabase</h2>
+        <p className="text-xs text-ink-muted">
+          Le chantier de l&apos;app (localStorage) n&apos;est pas dans Supabase tant qu&apos;il n&apos;est pas
+          synchronisé. « pajol » est le client, pas l&apos;UUID.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1">
+            <span className="text-xs font-medium">Nom du chantier</span>
+            <input
+              type="text"
+              value={chantierNom}
+              onChange={(e) => setChantierNom(e.target.value)}
+              className="w-full rounded-lg border border-surface-dark px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-xs font-medium">Client</span>
+            <input
+              type="text"
+              value={chantierClient}
+              onChange={(e) => setChantierClient(e.target.value)}
+              className="w-full rounded-lg border border-surface-dark px-3 py-2 text-sm"
+            />
+          </label>
+        </div>
+        <button
+          type="button"
+          disabled={syncing || supabaseOk === false}
+          onClick={() => void handleCreateChantier()}
+          className="rounded-lg border border-brand px-4 py-2 text-sm font-semibold text-brand disabled:opacity-50"
+        >
+          {syncing ? "Création…" : "Créer le chantier dans Supabase"}
+        </button>
         <label className="block space-y-1">
-          <span className="text-sm font-medium">chantier_id (UUID Supabase)</span>
+          <span className="text-xs font-medium">chantier_id (UUID — rempli automatiquement)</span>
           <input
             type="text"
             value={chantierId}
             onChange={(e) => setChantierId(e.target.value)}
-            className="w-full rounded-lg border border-surface-dark px-3 py-2 text-sm"
-            placeholder="ex. 3fa85f64-5717-4562-b3fc-2c963f66afa6"
-            required
+            className="w-full rounded-lg border border-surface-dark px-3 py-2 font-mono text-sm"
+            placeholder="UUID après création ou depuis Supabase"
           />
-          <span className="text-xs text-ink-muted">
-            Pas le nom du chantier — l&apos;UUID de la ligne dans Supabase (table chantiers).
-          </span>
         </label>
+      </section>
+
+      <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-surface-dark bg-white p-4">
+        <h2 className="text-sm font-semibold text-brand">2. Analyser le devis</h2>
         <label className="block space-y-1">
           <span className="text-sm font-medium">Fichier (.xlsx, .csv, .pdf)</span>
           <input
@@ -134,12 +186,16 @@ export default function DevisTestPage() {
         </label>
         <button
           type="submit"
-          disabled={loading || !file || supabaseOk === false}
+          disabled={loading || !file || !chantierId.trim() || supabaseOk === false}
           className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
         >
           {loading ? "Analyse en cours…" : "Analyser"}
         </button>
       </form>
+
+      {success && (
+        <pre className="overflow-auto rounded-lg bg-green-50 p-4 text-sm text-green-800">{success}</pre>
+      )}
 
       {error && (
         <pre className="overflow-auto rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</pre>
@@ -152,13 +208,14 @@ export default function DevisTestPage() {
       )}
 
       <section className="rounded-xl border border-dashed border-surface-dark p-4 text-sm text-ink-muted">
-        <h2 className="font-semibold text-brand">Exemple PowerShell</h2>
-        <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs">{`$uri = "https://simply-v1-tvz7.vercel.app/api/devis/analyser"
-$form = @{
-  chantier_id = "VOTRE_CHANTIER_UUID"
-  file = Get-Item -Path "C:\\chemin\\devis.xlsx"
-}
-Invoke-RestMethod -Uri $uri -Method Post -Form $form | ConvertTo-Json -Depth 10`}</pre>
+        <h2 className="font-semibold text-brand">SQL Supabase (alternative)</h2>
+        <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs">{`-- Lister tous les chantiers
+SELECT id, nom, client, created_at FROM chantiers ORDER BY created_at DESC;
+
+-- Créer manuellement
+INSERT INTO chantiers (nom, client, statut, owner_id)
+VALUES ('cardinet — black swan', 'pajol', 'en_cours', 'VOTRE_OWNER_UUID')
+RETURNING id, nom;`}</pre>
       </section>
     </main>
   );
