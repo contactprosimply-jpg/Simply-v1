@@ -36,6 +36,9 @@ Aucune requise — app standalone localStorage.
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=    # serveur uniquement
+SUPABASE_DEFAULT_OWNER_ID=    # MVP sans auth
+GROQ_API_KEY=                 # serveur uniquement — analyse IA devis
+GROQ_MODEL=llama-3.3-70b-versatile   # optionnel
 ```
 
 **Jamais** exposer service role côté client.

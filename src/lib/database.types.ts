@@ -13,6 +13,8 @@ export type Json =
 
 export type DevisImportStatut = "importe" | "valide";
 export type DevisTypeFichier = "xlsx" | "pdf" | "csv";
+export type BudgetPosteTypeLigne = "poste" | "titre_lot" | "sous_total";
+export type DevisDocumentType = "devis" | "dpgf" | "bordereau" | "autre";
 export type TacheStatutDb = "a_faire" | "en_cours" | "termine" | "bloque";
 export type TachePrioriteDb = "basse" | "normale" | "haute" | "urgente";
 
@@ -93,6 +95,11 @@ export interface Database {
           type_fichier: DevisTypeFichier | string | null;
           storage_path: string | null;
           statut: DevisImportStatut | string;
+          metiers_detectes: string[] | null;
+          total_ht: number | null;
+          total_ttc: number | null;
+          taux_tva: number | null;
+          resume: Json | null;
           created_at: string;
         };
         Insert: {
@@ -103,6 +110,11 @@ export interface Database {
           type_fichier?: DevisTypeFichier | string | null;
           storage_path?: string | null;
           statut?: DevisImportStatut | string;
+          metiers_detectes?: string[] | null;
+          total_ht?: number | null;
+          total_ttc?: number | null;
+          taux_tva?: number | null;
+          resume?: Json | null;
           created_at?: string;
         };
         Update: {
@@ -113,6 +125,11 @@ export interface Database {
           type_fichier?: DevisTypeFichier | string | null;
           storage_path?: string | null;
           statut?: DevisImportStatut | string;
+          metiers_detectes?: string[] | null;
+          total_ht?: number | null;
+          total_ttc?: number | null;
+          taux_tva?: number | null;
+          resume?: Json | null;
           created_at?: string;
         };
         Relationships: [
@@ -140,11 +157,15 @@ export interface Database {
           owner_id: string;
           numero_position: string | null;
           lot: string | null;
+          metier: string | null;
           designation: string;
           unite: string | null;
           quantite: number | null;
           prix_unitaire: number | null;
           prix_total: number | null;
+          type_ligne: BudgetPosteTypeLigne | string;
+          coherence_ok: boolean;
+          remarque: string | null;
           ordre: number | null;
           created_at: string;
         };
@@ -155,11 +176,15 @@ export interface Database {
           owner_id?: string;
           numero_position?: string | null;
           lot?: string | null;
+          metier?: string | null;
           designation: string;
           unite?: string | null;
           quantite?: number | null;
           prix_unitaire?: number | null;
           prix_total?: number | null;
+          type_ligne?: BudgetPosteTypeLigne | string;
+          coherence_ok?: boolean;
+          remarque?: string | null;
           ordre?: number | null;
           created_at?: string;
         };
@@ -170,11 +195,15 @@ export interface Database {
           owner_id?: string;
           numero_position?: string | null;
           lot?: string | null;
+          metier?: string | null;
           designation?: string;
           unite?: string | null;
           quantite?: number | null;
           prix_unitaire?: number | null;
           prix_total?: number | null;
+          type_ligne?: BudgetPosteTypeLigne | string;
+          coherence_ok?: boolean;
+          remarque?: string | null;
           ordre?: number | null;
           created_at?: string;
         };
