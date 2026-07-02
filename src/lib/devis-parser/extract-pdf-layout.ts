@@ -5,6 +5,33 @@ interface TextItem {
 }
 
 const Y_TOLERANCE = 5;
+const X_GAP = 12;
+
+function estimateEndX(item: TextItem): number {
+  return item.x + Math.max(item.text.length * 4.5, 10);
+}
+
+function clusterIntoColumns(group: TextItem[]): string[] {
+  if (group.length === 0) return [];
+  group.sort((a, b) => a.x - b.x);
+
+  const columns: string[] = [];
+  let buf = group[0]!.text;
+  let prevEnd = estimateEndX(group[0]!);
+
+  for (let i = 1; i < group.length; i++) {
+    const item = group[i]!;
+    if (item.x - prevEnd > X_GAP) {
+      columns.push(buf.trim());
+      buf = item.text;
+    } else {
+      buf += ` ${item.text}`;
+    }
+    prevEnd = Math.max(prevEnd, estimateEndX(item));
+  }
+  columns.push(buf.trim());
+  return columns.filter(Boolean);
+}
 
 /**
  * Extrait le PDF en lignes de cellules (colonnes triées par X)
@@ -46,10 +73,7 @@ export async function extractPdfTableRows(buffer: Buffer): Promise<string[][]> {
     }
   }
 
-  return rowGroups.map((group) => {
-    group.sort((a, b) => a.x - b.x);
-    return group.map((g) => g.text);
-  });
+  return rowGroups.map((group) => clusterIntoColumns(group));
 }
 
 /** Texte tabulé (fallback parseDevisText). */

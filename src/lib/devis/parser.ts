@@ -8,6 +8,8 @@ import {
 import { aggregateMetiers, detectMetier } from "@/lib/devis/metiers";
 import { parseFrenchNumber, parseIntegerQty } from "@/lib/devis/numbers";
 import type { DocumentAnalyse, GrilleDevis, PosteAnalyse, ResultatAnalyse } from "@/lib/devis/types";
+import { parseDevisTable } from "@/lib/devis-parser/parse-text";
+import type { ParsedPoste } from "@/lib/devis-parser/types";
 
 type ColumnRole =
   | "position"
@@ -200,8 +202,9 @@ function inferAmountsFromRow(row: string[], map: ColumnMap): {
     row.forEach((cell, idx) => {
       if (idx === map.position || idx === map.designation || idx === map.unite) return;
       if (parseFrenchNumber(cell) != null && /[,.]/.test(cell)) return;
+      if (/^\d{1,4}$/.test(cell.trim()) && idx === map.designation) return;
       const q = parseIntegerQty(cell);
-      if (q != null && quantite == null) quantite = q;
+      if (q != null && quantite == null && q <= 9999) quantite = q;
     });
   }
 
@@ -360,6 +363,32 @@ function parseRawFallback(grille: GrilleDevis, startIdx = 0): PosteAnalyse[] {
   return postes;
 }
 
+function parsedToPosteAnalyse(p: ParsedPoste): PosteAnalyse {
+  return applyCoherenceToPoste({
+    numero_position: p.numeroPosition,
+    lot: p.lot,
+    metier: detectMetier(p.designation),
+    designation: p.designation,
+    unite: p.unite,
+    quantite: p.quantite,
+    prix_unitaire: p.prixUnitaire,
+    prix_total: p.prixTotal,
+    type_ligne: "poste",
+    ordre: p.ordre,
+  });
+}
+
+function parseFromLayoutEngine(grille: GrilleDevis): {
+  postes: PosteAnalyse[];
+  prixFinal: number | null;
+} {
+  const layout = parseDevisTable(grille);
+  return {
+    postes: layout.postes.map(parsedToPosteAnalyse),
+    prixFinal: layout.prixFinal,
+  };
+}
+
 export interface AnalyserDevisOptions {
   /** PDF ou extraction imparfaite */
   pdfImperfect?: boolean;
@@ -386,15 +415,21 @@ export function analyserDevis(
   }
 
   let postes: PosteAnalyse[];
+  let prixFinalLayout: number | null = null;
 
-  if (structureFromHeader) {
+  if (structureFromHeader && !options?.pdfImperfect) {
     const map = buildColumnMap(grille[headerIdx]!);
     if (map.designation == null) {
       remarques.push("Colonne désignation non identifiée — inférence sur la colonne la plus large.");
     }
     postes = parseStructuredRows(grille, headerIdx, map, { structureReconnue: structure_reconnue });
   } else {
-    postes = parseRawFallback(grille);
+    const layout = parseFromLayoutEngine(grille);
+    postes = layout.postes;
+    prixFinalLayout = layout.prixFinal;
+    if (postes.length < 3) {
+      postes = parseRawFallback(grille);
+    }
   }
 
   postes = postes.filter((p) => isPlausiblePoste(p));
@@ -414,6 +449,9 @@ export function analyserDevis(
   }
 
   const totals = extractDocumentTotals(grille);
+  if (prixFinalLayout != null && totals.total_ttc == null) {
+    totals.total_ttc = prixFinalLayout;
+  }
   const type_document = detectDocumentType(grille);
   const metiers_detectes = aggregateMetiers(postes);
 

@@ -32,6 +32,18 @@ const JUNK_PATTERNS = [
   /\bpage\s+\d+\s*\/\s*\d+/i,
   /\bwww\./i,
   /\b@\w+\.\w+/,
+  /\b\d{1,4}\s+(rue|avenue|av\.|bd|boulevard|chemin|all[ée]e|impasse|route)\b/i,
+  /\b\d{5}\s+[a-zàâäéèêëïîôùûüç]/i,
+  /\bt[eé]l(?:[ée]phone)?\s*[:：]/i,
+  /\bemail\s*[:：]/i,
+  /\bgmail\.com\b/i,
+  /\bnum[eé]ro.*date/i,
+  /\bcode\s*client\b/i,
+  /\bmode\s*de\s*r[eè]glement\b/i,
+  /\bpour\s*le\s*client\b/i,
+  /\bdate\s*de\s*validit[eé]\b/i,
+  /\blu\s*et\b/i,
+  /\bapprouv[eé],?\s*bon\s*pour\s*accord\b/i,
 ];
 
 const BTP_KEYWORDS =

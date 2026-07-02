@@ -1,3 +1,5 @@
+import { hasBtpSignal, isJunkLine } from "@/lib/devis-parser/filters";
+import { hasPositivePrice, isPageMarkerLine, isTableHeaderLine } from "@/lib/devis-parser/table-headers";
 import { parseFrenchNumber } from "@/lib/devis/numbers";
 
 const UNIT_ONLY = /^(u|ml|m2|m²|m3|m³|ens|ff|forfait|pce|pc|kg|t|h|j)$/i;
@@ -24,6 +26,9 @@ export function isAmountOnly(text: string): boolean {
 export function isJunkDesignation(designation: string): boolean {
   const d = designation.trim();
   if (!d) return true;
+  if (isJunkLine(d)) return true;
+  if (isTableHeaderLine(d)) return true;
+  if (isPageMarkerLine(d)) return true;
   if (isAmountOnly(d)) return true;
 
   const n = normalizeText(d);
@@ -38,7 +43,6 @@ export function isJunkDesignation(designation: string): boolean {
 
   const letters = d.replace(/[^a-zàâäéèêëïîôùûüç]/gi, "");
   if (letters.length < 4 && parseFrenchNumber(d) != null) return true;
-
   if (/^[\d\s,.€-]+$/.test(d)) return true;
 
   return false;
@@ -50,7 +54,6 @@ export function isJunkRow(row: string[]): boolean {
 
   const joined = cells.join(" ");
   if (isJunkDesignation(joined)) return true;
-
   if (cells.length === 1 && isJunkDesignation(cells[0]!)) return true;
 
   return false;
@@ -67,6 +70,7 @@ export function isPlausiblePoste(p: {
   designation: string;
   type_ligne: string;
   metier: string | null;
+  prix_unitaire: number | null;
   prix_total: number | null;
   quantite: number | null;
 }): boolean {
@@ -78,16 +82,20 @@ export function isPlausiblePoste(p: {
   }
 
   if (p.type_ligne === "titre_lot") {
-    return p.designation.length >= 8 && /[a-zàâäéèêëïîôùûüç]{5,}/i.test(p.designation);
+    if (isJunkLine(p.designation)) return false;
+    if (hasBtpSignal(p.designation)) return true;
+    return /\blot\s*[\d.:]|corps d['']?[eé]tat|section\s+\d|chapitre\s+\d/i.test(
+      p.designation,
+    );
   }
 
   if (p.type_ligne === "poste") {
     if (p.designation.length < 5) return false;
     if (isAmountOnly(p.designation)) return false;
-    if (p.metier != null) return true;
-    if (p.prix_total != null && p.prix_total > 0) return true;
-    if (p.quantite != null && p.quantite > 0) return true;
-    return /[a-zàâäéèêëïîôùûüç]{6,}/i.test(p.designation);
+    if (!hasPositivePrice(p.prix_unitaire, p.prix_total)) return false;
+    if (p.metier != null || hasBtpSignal(p.designation)) return true;
+    if (p.quantite != null && p.prix_unitaire != null && p.prix_total != null) return true;
+    return p.designation.length >= 10;
   }
 
   return false;
