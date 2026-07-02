@@ -1,6 +1,7 @@
 /** "1 234,56" ou "1234.56" → number */
 export function parseFrenchNumber(raw: string): number | null {
   const cleaned = raw
+    .replace(/[\u00A0\u202F\u2007\u2009]/g, "")
     .replace(/\s/g, "")
     .replace(/€/g, "")
     .replace(",", ".")

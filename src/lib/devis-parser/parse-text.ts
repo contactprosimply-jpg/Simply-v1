@@ -10,6 +10,8 @@ import {
   extractRefNumber,
   formatDesignationWithRef,
   isPosteReferenceLine,
+  mergeSplitReferenceLines,
+  normalizeExtractedText,
 } from "@/lib/devis-parser/poste-references";
 import { extractAmounts, parseFrenchNumber, parseIntegerToken, splitGluedAmounts } from "@/lib/devis-parser/numbers";
 import {
@@ -476,6 +478,9 @@ function defaultUnite(
 
 /** Scan pdf-parse vertical lines (DEMATHIEU: libellé puis qté/U puis montants collés). */
 function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
+  const merged = mergeSplitReferenceLines(
+    rawLines.map((l) => normalizeExtractedText(l)).filter(Boolean),
+  );
   const postes: ParsedPoste[] = [];
   let pendingDesc: string[] = [];
   let pendingRef: string | null = null;
@@ -517,8 +522,8 @@ function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
     pendingUnit = null;
   };
 
-  for (let i = 0; i < rawLines.length; i++) {
-    const raw = rawLines[i]!;
+  for (let i = 0; i < merged.length; i++) {
+    const raw = merged[i]!;
     const line = raw.replace(/\s+/g, " ").trim();
     if (!line) continue;
 
@@ -561,7 +566,7 @@ function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
     const amounts = extractAmounts(normalized);
 
     if (amounts.length >= 2) {
-      const trailing = collectTrailingMeta(rawLines, i + 1);
+      const trailing = collectTrailingMeta(merged, i + 1);
       let designation = textWithoutAmounts(line);
       if (designation.length < 4) {
         const parts = [...pendingDesc];
@@ -638,7 +643,12 @@ function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
 }
 
 export function parseDevisText(text: string): ParsedDevis {
-  const rawLines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const rawLines = mergeSplitReferenceLines(
+    text
+      .split(/\r?\n/)
+      .map((l) => normalizeExtractedText(l))
+      .filter(Boolean),
+  );
 
   const verticalPostes = dedupePostes(extractVerticalPdfPostes(rawLines));
   const { value: prixFinal, label: prixFinalLabel } = extractFinalPrice(rawLines);

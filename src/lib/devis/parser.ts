@@ -11,13 +11,7 @@ import type { DocumentAnalyse, GrilleDevis, PosteAnalyse, ResultatAnalyse } from
 import { parseDevisTable, parseDevisText } from "@/lib/devis-parser/parse-text";
 import type { ParsedPoste } from "@/lib/devis-parser/types";
 import { rowsToPlainText } from "@/lib/devis-parser/extract-pdf-layout";
-import { extractAmounts, splitGluedAmounts } from "@/lib/devis-parser/numbers";
-import {
-  extractPosteReference,
-  extractRefNumber,
-  formatDesignationWithRef,
-  isPosteReferenceLine,
-} from "@/lib/devis-parser/poste-references";
+import { enrichPosteDesignationsFromPdf } from "@/lib/devis-parser/associate-labels";
 
 type ColumnRole =
   | "position"
@@ -432,123 +426,6 @@ function pickBestPosteCandidates(candidates: PosteAnalyse[][]): PosteAnalyse[] {
   return best;
 }
 
-const PAGE_MARKER_RE = /^\d{1,3}\s+sur\s+\d{1,3}$/i;
-
-function needsDesignationEnrichment(designation: string): boolean {
-  return /^Poste \d+ \(HT /.test(designation) || designation.length < 12;
-}
-
-function isDetailCandidate(text: string): boolean {
-  const c = text.trim();
-  if (!c || c.length < 10) return false;
-  if (isPosteReferenceLine(c)) return false;
-  if (isJunkDesignation(c)) return false;
-  if (extractAmounts(splitGluedAmounts(c)).length > 0) return false;
-  return /[a-zàâäéèêëïîôùûüç]{5,}/i.test(c);
-}
-
-function findPosteForAmount(
-  postes: PosteAnalyse[],
-  amount: number,
-  used: Set<number>,
-): PosteAnalyse | null {
-  const candidates = postes.filter(
-    (p) =>
-      p.type_ligne === "poste" &&
-      p.prix_total != null &&
-      !used.has(p.ordre) &&
-      needsDesignationEnrichment(p.designation),
-  );
-  const byTotal = candidates.find((p) => Math.abs(p.prix_total! - amount) < 0.05);
-  if (byTotal) return byTotal;
-  return (
-    candidates.find(
-      (p) => p.prix_unitaire != null && Math.abs(p.prix_unitaire - amount) < 0.05,
-    ) ?? null
-  );
-}
-
-function applyRefToPoste(
-  poste: PosteAnalyse,
-  ref: string,
-  detail: string | null,
-): void {
-  poste.designation = formatDesignationWithRef(ref, detail);
-  poste.numero_position = extractRefNumber(ref);
-  poste.metier = detectMetier(poste.designation);
-}
-
-function associateLabelsFromGrilleSequence(postes: PosteAnalyse[], grille: GrilleDevis): void {
-  let lastRef: string | null = null;
-  let lastDetail: string | null = null;
-  const used = new Set<number>();
-
-  for (const row of grille) {
-    for (const cell of row) {
-      const c = cell.trim();
-      if (!c) continue;
-      const ref = extractPosteReference(c);
-      if (ref) {
-        lastRef = ref;
-        lastDetail = null;
-        if (c.length <= 80) continue;
-      }
-      if (isDetailCandidate(c)) lastDetail = c.slice(0, 100);
-    }
-
-    for (const cell of row) {
-      const amounts = extractAmounts(splitGluedAmounts(cell));
-      for (const amt of amounts) {
-        const poste = findPosteForAmount(postes, amt, used);
-        if (!poste || !lastRef) continue;
-        applyRefToPoste(poste, lastRef, lastDetail);
-        used.add(poste.ordre);
-        break;
-      }
-    }
-  }
-}
-
-function associateLabelsFromPlainTextSequence(postes: PosteAnalyse[], text: string): void {
-  let lastRef: string | null = null;
-  let lastDetail: string | null = null;
-  const used = new Set<number>();
-
-  const lines = text
-    .split(/\r?\n/)
-    .map((l) => l.replace(/\s+/g, " ").trim())
-    .filter(Boolean);
-
-  for (const line of lines) {
-    if (PAGE_MARKER_RE.test(line)) {
-      lastDetail = null;
-      continue;
-    }
-
-    const ref = extractPosteReference(line);
-    if (ref && line.length <= 80) {
-      lastRef = ref;
-      lastDetail = null;
-      continue;
-    }
-
-    if (isDetailCandidate(line)) {
-      lastDetail = line.slice(0, 100);
-    }
-
-    const amounts = extractAmounts(splitGluedAmounts(line));
-    if (amounts.length === 0 || !lastRef) continue;
-
-    for (const amt of amounts) {
-      const poste = findPosteForAmount(postes, amt, used);
-      if (!poste) continue;
-      applyRefToPoste(poste, lastRef, lastDetail);
-      used.add(poste.ordre);
-      break;
-    }
-  }
-}
-
 function refreshPosteCoherence(postes: PosteAnalyse[]): PosteAnalyse[] {
   return postes.map((p) => {
     if (p.type_ligne !== "poste") return p;
@@ -635,13 +512,25 @@ export function analyserDevis(
   postes = postes.filter((p) => isPlausiblePoste(p));
 
   if (options?.pdfPlainText) {
-    associateLabelsFromGrilleSequence(postes, grille);
-    const layoutText = rowsToPlainText(grille);
-    if (layoutText.trim()) {
-      associateLabelsFromPlainTextSequence(postes, layoutText);
-    }
-    associateLabelsFromPlainTextSequence(postes, options.pdfPlainText);
+    enrichPosteDesignationsFromPdf(postes, grille, options.pdfPlainText);
     postes = refreshPosteCoherence(postes);
+
+    const fallbackPostes = postes.filter(
+      (p) => p.type_ligne === "poste" && /^Poste \d+ \(HT /.test(p.designation),
+    );
+    if (fallbackPostes.length > 0) {
+      const sources = [
+        options.pdfPlainText,
+        ...grille.flat(),
+      ]
+        .join("\n")
+        .toUpperCase();
+      if (!/\bREP\b|\bREF\b/.test(sources)) {
+        remarques.push(
+          "Références REP/REF absentes du texte PDF extrait — libellés peut-être dans des dessins non textuels.",
+        );
+      }
+    }
   }
 
   const plausiblePostes = postes.filter((p) => p.type_ligne === "poste");
