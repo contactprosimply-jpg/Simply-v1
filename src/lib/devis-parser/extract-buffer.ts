@@ -1,7 +1,22 @@
 import type { DevisTypeFichier } from "@/lib/database.types";
+import { extractPdfTableRows, rowsToPlainText } from "@/lib/devis-parser/extract-pdf-layout";
 import { parseDevisTable, parseDevisText } from "@/lib/devis-parser/parse-text";
 import type { ParsedDevis } from "@/lib/devis-parser/types";
 import * as XLSX from "xlsx";
+
+function pickBestParsed(candidates: ParsedDevis[]): ParsedDevis {
+  const scored = candidates
+    .filter((c) => c.postes.length > 0)
+    .map((c) => {
+      const withPrice = c.postes.filter(
+        (p) => (p.prixTotal ?? 0) > 0 || (p.prixUnitaire ?? 0) > 0,
+      ).length;
+      return { c, score: withPrice * 10 + c.postes.length };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  return scored[0]?.c ?? candidates[0] ?? { prixFinal: null, prixFinalLabel: null, postes: [] };
+}
 
 export async function parseDevisBuffer(
   buffer: Buffer,
@@ -10,8 +25,24 @@ export async function parseDevisBuffer(
   const kind = (type ?? "pdf").toLowerCase();
 
   if (kind === "pdf") {
-    const text = await extractPdfText(buffer);
-    return parseDevisText(text);
+    const candidates: ParsedDevis[] = [];
+
+    try {
+      const rows = await extractPdfTableRows(buffer);
+      if (rows.length > 0) {
+        candidates.push(parseDevisTable(rows));
+        candidates.push(parseDevisText(rowsToPlainText(rows)));
+      }
+    } catch {
+      // pdfjs indisponible — fallback pdf-parse
+    }
+
+    const legacyText = await extractPdfText(buffer);
+    if (legacyText.trim()) {
+      candidates.push(parseDevisText(legacyText));
+    }
+
+    return pickBestParsed(candidates);
   }
 
   if (kind === "csv") {

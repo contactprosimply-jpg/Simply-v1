@@ -6,6 +6,11 @@ import {
   splitTableColumns,
 } from "@/lib/devis-parser/normalize-lines";
 import { extractAmounts, parseFrenchNumber, parseIntegerToken } from "@/lib/devis-parser/numbers";
+import {
+  isPageMarkerLine,
+  isTableHeaderLine,
+  isValidPosteNumber,
+} from "@/lib/devis-parser/table-headers";
 import type { ParsedDevis, ParsedPoste } from "@/lib/devis-parser/types";
 
 const UNITS = new Set([
@@ -213,7 +218,14 @@ function tryParseStructuredRow(
 }
 
 function parsePosteLine(line: string, lot: string | null, ordre: number): ParsedPoste | null {
-  if (isJunkLine(line) || SKIP_LINE.test(line) || TOTAL_LINE.test(line) || HEADER_LINE.test(line)) {
+  if (
+    isJunkLine(line) ||
+    SKIP_LINE.test(line) ||
+    TOTAL_LINE.test(line) ||
+    HEADER_LINE.test(line) ||
+    isTableHeaderLine(line) ||
+    isPageMarkerLine(line)
+  ) {
     return null;
   }
 
@@ -445,6 +457,93 @@ function mergeMultilinePostes(lines: string[]): string[] {
   return merged;
 }
 
+/** Parse une ligne tableau déjà découpée en cellules (pdfjs). */
+function parseLayoutRow(
+  cells: string[],
+  lot: string | null,
+  ordre: number,
+): ParsedPoste | null {
+  if (cells.length < 3) return null;
+
+  const line = cells.join(" ");
+  if (
+    isJunkLine(line) ||
+    isTableHeaderLine(line) ||
+    isPageMarkerLine(line) ||
+    TOTAL_LINE.test(line)
+  ) {
+    return null;
+  }
+
+  let start = 0;
+  let numeroPosition: string | null = null;
+  const first = cells[0]!;
+  if (/^\d+(?:\.\d+)*$/.test(first) && isValidPosteNumber(first, cells[1])) {
+    numeroPosition = first;
+    start = 1;
+  }
+
+  const tail = cells.slice(start);
+  const amountCells: { idx: number; val: number }[] = [];
+
+  for (let j = tail.length - 1; j >= 0; j--) {
+    const col = tail[j]!;
+    if (!/[,.]\d{2}/.test(col)) continue;
+    const val = parseFrenchNumber(col);
+    if (val == null) continue;
+    amountCells.unshift({ idx: j, val });
+    if (amountCells.length >= 2) break;
+  }
+
+  if (amountCells.length < 2) return null;
+
+  const prixTotal = amountCells[amountCells.length - 1]!.val;
+  const prixUnitaire = amountCells[amountCells.length - 2]!.val;
+  const amountIdxSet = new Set(amountCells.map((a) => a.idx));
+
+  let quantite: number | null = null;
+  let unite: string | null = null;
+  const textParts: string[] = [];
+
+  for (let j = 0; j < tail.length; j++) {
+    if (amountIdxSet.has(j)) continue;
+    const col = tail[j]!;
+    const unit = parseUnitToken(col);
+    if (unit) {
+      unite = unit;
+      continue;
+    }
+    const qi = parseIntegerToken(col);
+    if (qi != null && quantite == null) {
+      quantite = qi;
+      continue;
+    }
+    if (col.length >= 2) textParts.push(col);
+  }
+
+  const designation = textParts.join(" ").trim();
+  if (designation.length < 3) return null;
+
+  if (quantite == null && unite?.toLowerCase() === "u" && prixUnitaire > 0 && prixTotal > 0) {
+    const ratio = prixTotal / prixUnitaire;
+    if (ratio >= 1 && ratio <= 9999 && Math.abs(ratio - Math.round(ratio)) < 0.02) {
+      quantite = Math.round(ratio);
+    }
+  }
+
+  return buildPosteFromParts(
+    line,
+    lot,
+    ordre,
+    numeroPosition,
+    designation,
+    unite,
+    quantite,
+    prixUnitaire,
+    prixTotal,
+  );
+}
+
 /** Parse CSV / feuille tabulaire (colonnes libellé, qté, PU, total). */
 export function parseDevisTable(rows: string[][]): ParsedDevis {
   const postes: ParsedPoste[] = [];
@@ -464,35 +563,10 @@ export function parseDevisTable(rows: string[][]): ParsedDevis {
       continue;
     }
 
-    const designationIdx = cells.findIndex((c) => c.length > 5 && !/^\d+([.,]\d+)?$/.test(c));
-    const nums = cells.map(parseFrenchNumber).filter((n): n is number => n !== null);
-
-    if (designationIdx >= 0 && nums.length >= 1) {
-      const designation = cells[designationIdx]!;
-      if (TOTAL_LINE.test(designation) || SKIP_LINE.test(designation) || isJunkLine(designation)) {
-        continue;
-      }
-      const prixTotal = nums[nums.length - 1]!;
-      const prixUnitaire = nums.length >= 2 ? nums[nums.length - 2]! : null;
-      const quantite = nums.length >= 3 ? nums[nums.length - 3]! : null;
-      const numeroPosition = cells[0]?.match(/^\d+(?:\.\d+)*$/) ? cells[0]! : null;
-
-      if (
-        !isPlausiblePoste(line, designation, numeroPosition, quantite, prixUnitaire, prixTotal)
-      ) {
-        continue;
-      }
-
-      postes.push({
-        numeroPosition,
-        lot: currentLot,
-        designation,
-        unite: null,
-        quantite,
-        prixUnitaire,
-        prixTotal,
-        ordre: ordre++,
-      });
+    const layoutPoste = parseLayoutRow(cells, currentLot, ordre);
+    if (layoutPoste) {
+      postes.push(layoutPoste);
+      ordre += 1;
       continue;
     }
 

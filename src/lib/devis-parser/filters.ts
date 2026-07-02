@@ -1,4 +1,11 @@
 /** Lignes administratives / pied de page à ne jamais transformer en tâches. */
+import {
+  hasPositivePrice,
+  isPageMarkerLine,
+  isTableHeaderLine,
+  isValidPosteNumber,
+} from "@/lib/devis-parser/table-headers";
+
 const JUNK_PATTERNS = [
   /\bape\s*[:：]/i,
   /\brcs\s*[:：]/i,
@@ -34,6 +41,8 @@ export function isJunkLine(line: string): boolean {
   const trimmed = line.trim();
   if (trimmed.length < 5) return true;
   if (JUNK_PATTERNS.some((re) => re.test(trimmed))) return true;
+  if (isTableHeaderLine(trimmed)) return true;
+  if (isPageMarkerLine(trimmed)) return true;
   // Ligne quasi uniquement identifiants / chiffres légaux
   const letters = trimmed.replace(/[^a-zàâäéèêëïîôùûüç]/gi, "");
   if (letters.length < 8 && /\d{9,}/.test(trimmed)) return true;
@@ -54,10 +63,15 @@ export function isPlausiblePoste(
   prixTotal: number | null,
 ): boolean {
   if (isJunkLine(line) || isJunkLine(designation)) return false;
+  if (isTableHeaderLine(designation) || isPageMarkerLine(line)) return false;
+
+  if (!hasPositivePrice(prixUnitaire, prixTotal)) return false;
 
   if (numeroPosition) {
+    if (!isValidPosteNumber(numeroPosition, designation.split(/\s+/)[0])) return false;
     if (designation.length < 4) return false;
     if (isJunkLine(designation)) return false;
+    if (isTableHeaderLine(designation)) return false;
     return true;
   }
 
