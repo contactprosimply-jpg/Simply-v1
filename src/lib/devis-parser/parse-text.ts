@@ -7,6 +7,7 @@ import {
 } from "@/lib/devis-parser/normalize-lines";
 import {
   extractPosteReference,
+  extractRefNumber,
   formatDesignationWithRef,
   isPosteReferenceLine,
 } from "@/lib/devis-parser/poste-references";
@@ -502,6 +503,7 @@ function extractVerticalPdfPostes(rawLines: string[]): ParsedPoste[] {
   const applyPendingRef = (poste: ParsedPoste): void => {
     if (!pendingRef) return;
     if (poste.designation.includes(pendingRef)) return;
+    poste.numeroPosition = extractRefNumber(pendingRef);
     if (/^Poste \d+ \(HT /.test(poste.designation) || poste.designation.length < 20) {
       const detail = pendingDesc.find((l) => !isPosteReferenceLine(l) && l.length >= 8);
       poste.designation = formatDesignationWithRef(pendingRef, detail ?? null);
